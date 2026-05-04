@@ -1335,27 +1335,18 @@ function saveTable(table, data){
 
 // GUARDAR tabla grande como JSON en una sola celda (productos, proveedores)
 function saveTableAsJSON(table, data){
-  var json = JSON.stringify(data);
-  var url = API_URL + '?action=savejson' +
-    '&table=' + encodeURIComponent(table) +
-    '&json=' + encodeURIComponent(json);
-  // Si el JSON es muy largo, usar POST via form trick
-  if(url.length > 7000){
-    // Dividir en partes de 500 items
-    var PART = 500;
-    for(var i=0; i<data.length; i+=PART){
-      (function(part, idx){
-        var partJson = JSON.stringify(part);
-        var partUrl = API_URL + '?action=savejson' +
-          '&table=' + encodeURIComponent(table) +
-          '&part=' + idx +
-          '&total=' + Math.ceil(data.length/PART) +
-          '&json=' + encodeURIComponent(partJson);
-        setTimeout(function(){ jsonp(partUrl, function(){}); }, idx * 400);
-      })(data.slice(i, i+PART), Math.floor(i/PART));
-    }
-  } else {
-    jsonp(url, function(){});
+  // Dividir en partes de 50 items para no superar limite de URL
+  var PART = 50;
+  var total = Math.ceil(data.length / PART) || 1;
+  for(var i=0; i<Math.max(1, data.length); i+=PART){
+    (function(part, idx){
+      var partUrl = API_URL + '?action=savejson' +
+        '&table=' + encodeURIComponent(table) +
+        '&part=' + idx +
+        '&total=' + total +
+        '&json=' + encodeURIComponent(JSON.stringify(part));
+      setTimeout(function(){ jsonp(partUrl, function(){}); }, idx * 500);
+    })(data.slice(i, i+PART), Math.floor(i/PART));
   }
 }
 
@@ -2758,6 +2749,8 @@ snackEl.classList.add('show');
 loadFromSheets(function(){
   popCatSelects();
   render();
+  // Sincronizar productos y proveedores a Sheets en cada apertura
+  saveProductosProveedores();
 });
 </script>
 </body>
