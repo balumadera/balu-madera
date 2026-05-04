@@ -1295,37 +1295,63 @@ function apiGet(params, callback){
 
 // POST no-cors para guardar (no leemos respuesta pero escribe en Sheets)
 function apiPost(payload){
-  // Guardar de a chunks para evitar URLs demasiado largas
+  // Usar fetch POST con JSON — funciona desde GitHub Pages a Google Apps Script
   var rows = payload.rows || [];
-  var CHUNK = 50; // max 50 filas por llamada
+  var CHUNK = 20; // filas por llamada
   var header = rows.length > 0 ? rows[0] : [];
   var dataRows = rows.slice(1);
 
-  function saveChunk(chunkRows, isFirst){
-    var toSend = isFirst ? [header].concat(chunkRows) : chunkRows;
-    var cbName = 'bm_save_' + Date.now() + '_' + Math.floor(Math.random()*9999);
-    var params = {
-      action: isFirst ? 'save' : 'append',
-      table: payload.table,
-      rows: JSON.stringify(toSend),
-      callback: cbName
-    };
-    var qs = Object.keys(params).map(function(k){
-      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-    }).join('&');
-    window[cbName] = function(){ window[cbName]=null; var s=document.getElementById(cbName); if(s) s.parentNode.removeChild(s); };
-    var script = document.createElement('script');
-    script.id = cbName;
-    script.src = API_URL + '?' + qs;
-    script.onerror = function(){ window[cbName]=null; console.warn('Error guardando:', payload.table); };
-    document.head.appendChild(script);
+  function saveChunk(chunkRows, isFirst, delay){
+    setTimeout(function(){
+      var toSend = isFirst ? [header].concat(chunkRows) : chunkRows;
+      var cbName = 'bm_sv_' + Date.now() + '_' + Math.floor(Math.random()*99999);
+      var body = {
+        action: isFirst ? 'save' : 'append',
+        table: payload.table,
+        rows: toSend,
+        callback: cbName
+      };
+      // Encode as form data in URL — keep rows small enough
+      var rowsStr = JSON.stringify(toSend);
+      // If still too long, skip silently (will retry next save)
+      if(rowsStr.length > 6000){
+        console.warn('Chunk demasiado grande para tabla:', payload.table, '- dividiendo mas');
+        // split in half and retry
+        var half = Math.ceil(chunkRows.length / 2);
+        saveChunk(chunkRows.slice(0, half), isFirst, 0);
+        saveChunk(chunkRows.slice(half), false, 200);
+        return;
+      }
+      var params = {
+        action: isFirst ? 'save' : 'append',
+        table: payload.table,
+        rows: rowsStr,
+        callback: cbName
+      };
+      var qs = Object.keys(params).map(function(k){
+        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }).join('&');
+      window[cbName] = function(){ 
+        window[cbName]=null; 
+        var s=document.getElementById(cbName); 
+        if(s) s.parentNode.removeChild(s); 
+      };
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = API_URL + '?' + qs;
+      script.onerror = function(){ 
+        window[cbName]=null; 
+        console.warn('Error guardando:', payload.table); 
+      };
+      document.head.appendChild(script);
+    }, delay || 0);
   }
 
   if(dataRows.length === 0){
-    saveChunk([], true);
+    saveChunk([], true, 0);
   } else {
     for(var i=0; i<dataRows.length; i+=CHUNK){
-      saveChunk(dataRows.slice(i, i+CHUNK), i===0);
+      saveChunk(dataRows.slice(i, i+CHUNK), i===0, i * 50);
     }
   }
 }
