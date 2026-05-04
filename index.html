@@ -1267,15 +1267,30 @@ var pedidos = JSON.parse(localStorage.getItem('bm_ped') || 'null') || [];
 // ── GOOGLE SHEETS API ────────────────────────────────────────────────────────
 var API_URL = 'https://script.google.com/macros/s/AKfycbxfFSt4cQ05TZvTL_BuyafvneglSQi5QGkY6qViDoEOl9F7iW4f3l8KDR3OP41387oT1g/exec';
 
-// GET para cargar (sin problemas de CORS)
+// JSONP para cargar (funciona sin CORS desde cualquier navegador)
 function apiGet(params, callback){
+  var cbName = 'bm_cb_' + Date.now() + '_' + Math.floor(Math.random()*9999);
   var qs = Object.keys(params).map(function(k){
     return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-  }).join('&');
-  fetch(API_URL + '?' + qs)
-    .then(function(r){ return r.json(); })
-    .then(function(data){ callback(null, data); })
-    .catch(function(err){ callback(err, null); });
+  }).join('&') + '&callback=' + cbName;
+  var done = false;
+  var timeout = setTimeout(function(){
+    if(!done){ done=true; window[cbName]=null; callback(new Error('timeout'),null); }
+    var s=document.getElementById(cbName); if(s) s.parentNode.removeChild(s);
+  }, 12000);
+  window[cbName] = function(data){
+    if(!done){ done=true; clearTimeout(timeout); callback(null, data); }
+    window[cbName] = null;
+    var s=document.getElementById(cbName); if(s) s.parentNode.removeChild(s);
+  };
+  var script = document.createElement('script');
+  script.id = cbName;
+  script.src = API_URL + '?' + qs;
+  script.onerror = function(){
+    if(!done){ done=true; clearTimeout(timeout); callback(new Error('script error'),null); }
+    window[cbName] = null;
+  };
+  document.head.appendChild(script);
 }
 
 // POST no-cors para guardar (no leemos respuesta pero escribe en Sheets)
