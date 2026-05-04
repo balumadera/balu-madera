@@ -1267,17 +1267,28 @@ var pedidos = JSON.parse(localStorage.getItem('bm_ped') || 'null') || [];
 // ── GOOGLE SHEETS API ────────────────────────────────────────────────────────
 var API_URL = 'https://script.google.com/macros/s/AKfycbxfFSt4cQ05TZvTL_BuyafvneglSQi5QGkY6qViDoEOl9F7iW4f3l8KDR3OP41387oT1g/exec';
 
-function apiPost(payload, callback){
-  fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){ if(callback) callback(null, data); })
-  .catch(function(err){ if(callback) callback(err, null); });
+// GET para cargar (sin problemas de CORS)
+function apiGet(params, callback){
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  }).join('&');
+  fetch(API_URL + '?' + qs)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ callback(null, data); })
+    .catch(function(err){ callback(err, null); });
 }
 
-// Serialización: convierte array de objetos → array de arrays (filas)
+// POST no-cors para guardar (no leemos respuesta pero escribe en Sheets)
+function apiPost(payload){
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).catch(function(err){ console.warn('POST error:', err); });
+}
+
+// Serialización
 function objsToRows(arr, cols){
   var rows = [cols];
   arr.forEach(function(o){
@@ -1295,86 +1306,91 @@ function rowsToObjs(rows){
   });
 }
 
-// Columnas de cada tabla
 var COLS = {
   ventas:       ['id','fecha','pid','nombre','cat','cant','cu','pu','estado','notas'],
   pedidos:      ['id','fecha','cliente','detalle','total','sena','metSena','entrega','notas','estado','items'],
   cotizaciones: ['id','fecha','cliente','detalle','monto','estado','motivo','seg'],
   visitas:      ['id','fecha','tipo','det'],
-  categorias:   ['id','nombre','color']
+  categorias:   ['id','nombre','color'],
+  productos:    ['id','cod','nombre','cat','costo','margen','prov','notas'],
+  proveedores:  ['id','nombre','rubro','contacto','tel','cond','entrega','notas']
 };
 
-// SAVE — guarda UNA tabla en Sheets
 function saveTable(table, data){
   var cols = COLS[table];
   var rows = objsToRows(data.map(function(o){
     var copy = {};
-    cols.forEach(function(c){ copy[c] = (c==='items' && typeof o[c]==='object') ? JSON.stringify(o[c]||[]) : (o[c]!==undefined?o[c]:''); });
+    cols.forEach(function(c){
+      copy[c] = (c==='items' && typeof o[c]==='object') ? JSON.stringify(o[c]||[]) : (o[c]!==undefined ? o[c] : '');
+    });
     return copy;
   }), cols);
-  apiPost({action:'save', table:table, rows:rows}, function(err){
-    if(err) console.warn('Error guardando ' + table, err);
-  });
+  apiPost({action:'save', table:table, rows:rows});
 }
 
-// SAVE ALL — guarda todas las tablas operativas
 function save(){
   saveTable('ventas',       ventas);
   saveTable('pedidos',      pedidos);
   saveTable('cotizaciones', cotizaciones);
   saveTable('visitas',      visitas);
   saveTable('categorias',   categorias);
-  // fallback local también
+  saveTable('productos',    productos);
+  saveTable('proveedores',  proveedores);
   localStorage.setItem('bm_vent', JSON.stringify(ventas));
   localStorage.setItem('bm_cot',  JSON.stringify(cotizaciones));
   localStorage.setItem('bm_vis',  JSON.stringify(visitas));
   localStorage.setItem('bm_ped',  JSON.stringify(pedidos));
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
+  localStorage.setItem('bm_prod', JSON.stringify(productos));
+  localStorage.setItem('bm_prov', JSON.stringify(proveedores));
 }
 
-// LOAD — carga todas las tablas desde Sheets al iniciar
 function loadFromSheets(onDone){
-  var tables = ['ventas','pedidos','cotizaciones','visitas','categorias'];
+  var tables = ['ventas','pedidos','cotizaciones','visitas','categorias','productos','proveedores'];
   var loaded = 0;
-  var failed = 0;
+  var ok = 0;
 
-  function tryNext(table){
-    apiPost({action:'load', table:table}, function(err, data){
-      loaded++;
-      if(!err && data && data.ok && data.rows && data.rows.length > 1){
-        var objs = rowsToObjs(data.rows);
-        if(table==='ventas'){
-          ventas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, pid:+o.pid||0, cant:+o.cant||1, cu:+o.cu||0, pu:+o.pu||0}); });
-        } else if(table==='pedidos'){
-          pedidos = objs.map(function(o){
-            var items = [];
-            try{ items = JSON.parse(o.items||'[]'); }catch(e){}
-            return Object.assign(o,{id:+o.id||o.id, total:+o.total||0, sena:+o.sena||0, items:items});
-          });
-        } else if(table==='cotizaciones'){
-          cotizaciones = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
-        } else if(table==='visitas'){
-          visitas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
-        } else if(table==='categorias'){
-          if(objs.length >= categorias.length){
-            categorias = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
-          }
+  function processTable(table, err, data){
+    if(!err && data && data.ok && data.rows && data.rows.length > 1){
+      var objs = rowsToObjs(data.rows);
+      ok++;
+      if(table==='ventas'){
+        ventas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, pid:+o.pid||0, cant:+o.cant||1, cu:+o.cu||0, pu:+o.pu||0}); });
+      } else if(table==='pedidos'){
+        pedidos = objs.map(function(o){
+          var items=[]; try{ items=JSON.parse(o.items||'[]'); }catch(e){}
+          return Object.assign(o,{id:+o.id||o.id, total:+o.total||0, sena:+o.sena||0, items:items});
+        });
+      } else if(table==='cotizaciones'){
+        cotizaciones = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
+      } else if(table==='visitas'){
+        visitas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
+      } else if(table==='categorias'){
+        if(objs.length >= categorias.length){
+          categorias = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
         }
-      } else {
-        failed++;
-      }
-      if(loaded === tables.length){
-        if(failed === tables.length){
-          // Sheets no responde — usar localStorage como fallback
-          snack('⚠️ Sin conexión — usando datos locales');
-        } else {
-          snack('✓ Datos sincronizados con Google Sheets');
+      } else if(table==='productos'){
+        if(objs.length > 0){
+          productos = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0}); });
         }
-        onDone();
+      } else if(table==='proveedores'){
+        if(objs.length > 0){
+          proveedores = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
+        }
       }
-    });
+    }
+    loaded++;
+    if(loaded === tables.length){
+      snack(ok > 0 ? '✓ Sincronizado con Google Sheets' : '⚠️ Sin conexión — datos locales');
+      onDone();
+    }
   }
-  tables.forEach(function(t){ tryNext(t); });
+
+  tables.forEach(function(table){
+    apiGet({action:'load', table:table}, function(err, data){
+      processTable(table, err, data);
+    });
+  });
 }
 function hoy(){ return new Date().toISOString().slice(0,10); }
 function $p(n){ return '$' + Math.round(n).toLocaleString('es-AR'); }
@@ -2638,6 +2654,14 @@ visitas       = JSON.parse(localStorage.getItem('bm_vis')  || 'null') || visitas
 (function(){
   var saved = JSON.parse(localStorage.getItem('bm_cats') || 'null');
   if(saved && saved.length >= categorias.length) categorias = saved;
+})();
+(function(){
+  var savedProd = JSON.parse(localStorage.getItem('bm_prod') || 'null');
+  if(savedProd && savedProd.length > 0) productos = savedProd;
+})();
+(function(){
+  var savedProv = JSON.parse(localStorage.getItem('bm_prov') || 'null');
+  if(savedProv && savedProv.length > 0) proveedores = savedProv;
 })();
 
 document.getElementById('sbdate').textContent = new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
