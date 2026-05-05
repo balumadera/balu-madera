@@ -102,9 +102,7 @@ input:focus,select:focus{border-color:var(--wood-l);box-shadow:0 0 0 3px rgba(19
 
 .snack{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:var(--shl);white-space:nowrap;max-width:90vw}
 .snack.show{opacity:1}
-.cart-fab{position:fixed;bottom:calc(var(--nav-h) + 16px);right:16px;background:var(--gold);color:var(--ink);border:none;border-radius:50px;padding:12px 20px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;box-shadow:var(--shl);z-index:100;display:none;align-items:center;gap:8px;-webkit-tap-highlight-color:rgba(0,0,0,0)}
-.cart-fab.show{display:flex}
-.cart-fab-count{background:var(--ink);color:var(--paper);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+
 
 /* POS */
 .pos-search-wrap{position:relative;padding:0 12px 10px}
@@ -203,10 +201,6 @@ input:focus,select:focus{border-color:var(--wood-l);box-shadow:0 0 0 3px rgba(19
       <input class="pos-si" id="pos-s" type="text" placeholder="Buscar producto o código..." oninput="posSearch()" autocomplete="off">
       <div class="pos-dd" id="pos-dd"></div>
     </div>
-    <div class="pos-grid" id="pos-grid"></div>
-    <button class="cart-fab" id="cart-fab" onclick="scrollToCart()">
-      🛒 Ver carrito <span class="cart-fab-count" id="fab-count">0</span>
-    </button>
     <div class="cart-panel">
       <div class="cart-head">
         <span class="cart-tit">🛒 Venta actual</span>
@@ -232,6 +226,9 @@ input:focus,select:focus{border-color:var(--wood-l);box-shadow:0 0 0 3px rgba(19
         <button id="pb-sena" onclick="openModalSena()" disabled class="sena-btn">📝 Encargo con seña</button>
       </div>
     </div>
+    <!-- Productos debajo del carrito -->
+    <div style="padding:10px 12px 6px"><div style="font-size:12px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.3px">📦 Agregar productos</div></div>
+    <div class="pos-grid" id="pos-grid"></div>
   </div>
 
   <!-- VISITAS -->
@@ -1863,30 +1860,17 @@ function recalcTotals(){
   var subEl=document.getElementById('pos-sub'); if(subEl) subEl.textContent=$p(total);
   var totEl=document.getElementById('pos-tot'); if(totEl) totEl.textContent=$p(total);
 }
-function scrollToCart(){
-  var cp = document.querySelector('.cart-panel');
-  if(cp) cp.scrollIntoView({behavior:'smooth', block:'start'});
-}
-
 function renderCart(){
   var el=document.getElementById('pos-cart'); if(!el) return;
   var clrBtn=document.getElementById('cart-clear');
   var btns=['pb-ef','pb-tr','pb-ta','pb-cc'];
-  var fab=document.getElementById('cart-fab');
-  var fabCount=document.getElementById('fab-count');
   if(!cart.length){
     el.innerHTML='<div class="cart-empty">El carrito está vacío.<br>Tocá un producto para agregarlo.</div>';
     if(clrBtn) clrBtn.style.display='none';
     btns.forEach(function(id){var b=document.getElementById(id);if(b) b.disabled=true;});
     var bs=document.getElementById('pb-sena');if(bs) bs.disabled=true;
     ['pos-sub','pos-tot'].forEach(function(id){var e=document.getElementById(id);if(e) e.textContent='$0';});
-    if(fab) fab.classList.remove('show');
     return;
-  }
-  if(fab){
-    var totalItems=cart.reduce(function(s,i){return s+i.qty;},0);
-    if(fabCount) fabCount.textContent=totalItems;
-    fab.classList.add('show');
   }
   if(clrBtn) clrBtn.style.display='inline-flex';
   btns.forEach(function(id){var b=document.getElementById(id);if(b) b.disabled=false;});
