@@ -2414,8 +2414,9 @@ function openM(tipo, id){
     body =
       '<div class="fg">' +
         '<div class="fr"><label>Código</label><input id="f-cod" type="text" value="'+(p?p.cod:'')+'" placeholder="BM-009"></div>' +
-        '<div class="fr"><label>Stock (unid.)</label><input id="f-stock" type="number" min="0" value="'+(p?p.stock||0:0)+'" ></div>' +
+        '<div class="fr"><label>Stock (unid.)</label><input id="f-stock" type="number" min="0" value="'+(p?p.stock||0:0)+'"></div>' +
         '<div class="fr" style="grid-column:1/-1"><label>Nombre *</label><input id="f-nom" type="text" value="'+(p?p.nombre:'')+'" placeholder="Ej: Mesa de centro roble natural"></div>' +
+        '<div class="fr"><label>Categoría</label><div style="display:flex;gap:6px"><select id="f-cat" onchange="toggleNuevaCat()" style="flex:1">' + catOpts + '<option value="__nueva__">＋ Nueva categoría...</option></select></div><div id="nueva-cat-wrap" style="display:none;margin-top:6px"><input id="nueva-cat-input" type="text" placeholder="Nombre de la nueva categoría" style="width:100%"></div></div>' +
         '<div class="fr"><label>Costo ($)</label><input id="f-costo" type="number" value="'+(p?p.costo:0)+'" min="0" oninput="calcPrev()"></div>' +
         '<div class="fr"><label>Margen (%)</label><input id="f-margen" type="number" value="'+(p?p.margen:80)+'" min="0" max="500" oninput="calcPrev()"></div>' +
         '<div class="fr"><label>Proveedor</label><select id="f-prov"><option value="">Sin proveedor</option>'+provOpts+'</select></div>' +
@@ -2500,7 +2501,74 @@ function openM(tipo, id){
     document.getElementById('mbody').innerHTML = body;
   }
 
+
+  if(tipo === 'pedido'){
+    document.getElementById('mtitle').innerHTML = 'Nuevo pedido <button class="xb" onclick="closeM()">×</button>';
+    document.getElementById('mbody').innerHTML =
+      '<div class="fg">' +
+        '<div class="fr"><label>Cliente *</label><input id="ped-cli" type="text" placeholder="Nombre del cliente"></div>' +
+        '<div class="fr"><label>Detalle</label><input id="ped-det" type="text" placeholder="Ej: Mesa de luz nogal x2"></div>' +
+        '<div class="fr"><label>Total ($) *</label><input id="ped-tot" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
+        '<div class="fr"><label>Seña ($)</label><input id="ped-sena" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
+        '<div class="fr"><label>Método seña</label><select id="ped-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
+        '<div class="fr"><label>Fecha entrega</label><input id="ped-ent" type="date"></div>' +
+        '<div class="fr"><label>Notas</label><input id="ped-notas" type="text" placeholder="Color, medidas..."></div>' +
+      '</div>' +
+      '<div id="ped-prev" class="cprev" style="display:none;margin-top:8px"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+        '<button class="btn" onclick="closeM()">Cancelar</button>' +
+        '<button class="btn btn-g" onclick="savePedido()">Guardar pedido</button>' +
+      '</div>';
+    document.getElementById('modal').classList.add('open');
+    return;
+  }
+
   document.getElementById('modal').classList.add('open');
+}
+
+function calcPedPrev(){
+  var tot  = parseFloat((document.getElementById('ped-tot')||{}).value)||0;
+  var sena = parseFloat((document.getElementById('ped-sena')||{}).value)||0;
+  var el = document.getElementById('ped-prev'); if(!el) return;
+  if(tot>0||sena>0){
+    el.style.display='block';
+    el.innerHTML='<strong>Seña: $'+Math.round(sena).toLocaleString('es-AR')+'</strong> · Total: $'+Math.round(tot).toLocaleString('es-AR')+' · Saldo: <b style="color:var(--red-t)">$'+Math.round(Math.max(0,tot-sena)).toLocaleString('es-AR')+'</b>';
+  } else el.style.display='none';
+}
+
+function savePedido(){
+  var cli = (document.getElementById('ped-cli')||{}).value||'';
+  if(!cli.trim()){ snack('El cliente es obligatorio'); return; }
+  var tot  = parseFloat((document.getElementById('ped-tot')||{}).value)||0;
+  if(!tot){ snack('El total no puede ser 0'); return; }
+  var sena = parseFloat((document.getElementById('ped-sena')||{}).value)||0;
+  var met  = (document.getElementById('ped-met')||{}).value||'Efectivo';
+  var ent  = (document.getElementById('ped-ent')||{}).value||'';
+  var notas= (document.getElementById('ped-notas')||{}).value||'';
+  var det  = (document.getElementById('ped-det')||{}).value||'';
+  pedidos.push({
+    id: Date.now(),
+    fecha: hoy(),
+    cliente: cli.trim(),
+    detalle: det,
+    total: tot,
+    sena: sena,
+    metSena: met,
+    entrega: ent,
+    notas: notas,
+    estado: sena >= tot ? 'Parcialmente pagado' : 'Pendiente',
+    items: []
+  });
+  if(sena > 0){
+    ventas.push({
+      id: Date.now()+1, fecha: hoy(), pid: 0,
+      nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
+      cant: 1, cu: 0, pu: sena, estado: 'Ganada',
+      notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
+    });
+  }
+  save(); render(); closeM();
+  snack('✓ Pedido de ' + cli.trim() + ' guardado');
 }
 
 function calcPrev(){
