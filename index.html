@@ -1452,12 +1452,13 @@ function loadFromSheets(onDone){
 
   // Cargar productos como JSON
   loadTableJSON('productos', function(err, data){
-    if(!err && data && data.ok && data.data && data.data.length > 0){
-      // Sheets tiene datos — usarlos
+    if(!err && data && data.ok && data.data && data.data.length >= 294){
+      // Sheets tiene catálogo completo — usarlo
       productos = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0}); });
+      localStorage.setItem('bm_prod', JSON.stringify(productos));
       ok++;
     } else {
-      // Sheets vacío — subir los productos actuales
+      // Sheets incompleto — subir catálogo completo
       setTimeout(function(){ saveTableAsJSON('productos', productos); }, 2000);
     }
     checkDone();
@@ -2760,7 +2761,12 @@ visitas       = JSON.parse(localStorage.getItem('bm_vis')  || 'null') || visitas
 })();
 (function(){
   var savedProd = JSON.parse(localStorage.getItem('bm_prod') || 'null');
-  if(savedProd && savedProd.length > 0) productos = savedProd;
+  // Solo usar localStorage si tiene MAS productos que el catálogo base
+  if(savedProd && savedProd.length >= productos.length) productos = savedProd;
+  // Si tiene menos (datos corruptos), resetear al catálogo base
+  else if(savedProd && savedProd.length < productos.length){
+    localStorage.removeItem('bm_prod');
+  }
 })();
 (function(){
   var savedProv = JSON.parse(localStorage.getItem('bm_prov') || 'null');
