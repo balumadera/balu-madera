@@ -349,9 +349,6 @@ textarea{resize:vertical;min-height:68px}
         <select id="fc" onchange="prodPage=1;rProd()"><option value="">Todas las categorías</option></select>
         <select id="fprov" onchange="prodPage=1;rProd()">
           <option value="">Todos los proveedores</option>
-          <option value="Pinarcis">Pinarcis</option>
-          <option value="MyM Fibrofacil">MyM Fibrofacil</option>
-          <option value="MyM Pino">MyM Pino</option>
         </select>
       </div>
       <div class="card">
@@ -1954,6 +1951,23 @@ function catB(c){
 }
 
 function popCatSelects(){
+  // Poblar filtro de proveedores dinámicamente
+  var fprov = document.getElementById('fprov');
+  if(fprov){
+    var cur = fprov.value;
+    fprov.innerHTML = '<option value="">Todos los proveedores</option>';
+    // Obtener proveedores únicos de los productos
+    var provs = [];
+    productos.forEach(function(p){
+      if(p.prov && provs.indexOf(p.prov) === -1) provs.push(p.prov);
+    });
+    provs.sort().forEach(function(pv){
+      var opt = document.createElement('option');
+      opt.value = pv; opt.textContent = pv;
+      fprov.appendChild(opt);
+    });
+    if(cur) fprov.value = cur;
+  }
   var opts = '<option value="">Todas las categorías</option>' +
     categorias.map(function(c){
       return '<option value="' + c.nombre + '">' + c.nombre + '</option>';
