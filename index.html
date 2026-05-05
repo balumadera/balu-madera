@@ -1333,21 +1333,26 @@ function saveTable(table, data){
   }
 }
 
-// GUARDAR tabla grande como JSON en una sola celda (productos, proveedores)
+// GUARDAR tabla grande — primero borra, luego agrega parte por parte
 function saveTableAsJSON(table, data){
-  // Dividir en partes de 50 items para no superar limite de URL
-  var PART = 50;
-  var total = Math.ceil(data.length / PART) || 1;
-  for(var i=0; i<Math.max(1, data.length); i+=PART){
-    (function(part, idx){
-      var partUrl = API_URL + '?action=savejson' +
+  var PART = 40;
+  var parts = [];
+  for(var i=0; i<Math.max(1,data.length); i+=PART){
+    parts.push(data.slice(i, i+PART));
+  }
+  // Mandar cada parte con delay, la primera limpia la tabla
+  parts.forEach(function(part, idx){
+    setTimeout(function(){
+      var url = API_URL + '?action=savejson' +
         '&table=' + encodeURIComponent(table) +
         '&part=' + idx +
-        '&total=' + total +
+        '&total=' + parts.length +
         '&json=' + encodeURIComponent(JSON.stringify(part));
-      setTimeout(function(){ jsonp(partUrl, function(){}); }, idx * 500);
-    })(data.slice(i, i+PART), Math.floor(i/PART));
-  }
+      jsonp(url, function(err, res){
+        if(err) console.warn('Error parte '+idx+' de '+table, err);
+      });
+    }, idx * 800);
+  });
 }
 
 // CARGAR tabla normal (filas)
