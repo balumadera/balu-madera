@@ -1918,11 +1918,19 @@ function loadFromSheets(onDone){
 
   // Cargar proveedores como JSON
   loadTableJSON('proveedores', function(err, data){
-    if(!err && data && data.ok && data.data && data.data.length > 0){
-      proveedores = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
-      ok++;
+    if(!err && data && data.ok && data.data && data.data.length >= proveedores.length){
+      // Sheets tiene todos los proveedores — usarlos
+      var loaded = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
+      // Solo usar si tienen campos válidos (no undefined)
+      var valid = loaded.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
+      if(valid){
+        proveedores = loaded;
+        ok++;
+      } else {
+        setTimeout(function(){ saveTableAsJSON('proveedores', proveedores); }, 2000);
+      }
     } else {
-      // Sheets vacío — subir los proveedores actuales
+      // Sheets incompleto — subir los proveedores actuales
       setTimeout(function(){ saveTableAsJSON('proveedores', proveedores); }, 3000);
     }
     checkDone();
