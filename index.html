@@ -1910,7 +1910,7 @@ function openM(tipo, id){
     body =
       '<div class="fg">' +
         '<div class="fr"><label>Código</label><input id="f-cod" type="text" value="'+(p?p.cod:'')+'" placeholder="BM-009"></div>' +
-        '<div class="fr"><label>Categoría</label><select id="f-cat">' + catOpts + '</select></div>' +
+        '<div class="fr"><label>Categoría</label><div style="display:flex;gap:6px"><select id="f-cat" onchange="toggleNuevaCat()" style="flex:1">' + catOpts + '<option value="__nueva__">＋ Nueva categoría...</option></select></div><div id="nueva-cat-wrap" style="display:none;margin-top:6px"><input id="nueva-cat-input" type="text" placeholder="Nombre de la nueva categoría" style="width:100%"></div></div>' +
         '<div class="fr" style="grid-column:1/-1"><label>Nombre *</label><input id="f-nom" type="text" value="'+(p?p.nombre:'')+'" placeholder="Ej: Mesa de centro roble natural"></div>' +
         '<div class="fr"><label>Costo ($)</label><input id="f-costo" type="number" value="'+(p?p.costo:0)+'" min="0" oninput="calcPrev()"></div>' +
         '<div class="fr"><label>Margen (%)</label><input id="f-margen" type="number" value="'+(p?p.margen:80)+'" min="0" max="500" oninput="calcPrev()"></div>' +
@@ -2027,18 +2027,38 @@ function closeM(){ document.getElementById('modal').classList.remove('open'); ed
 function closeMovl(e){ if(e.target===document.getElementById('modal')) closeM(); }
 
 // ── SAVES ─────────────────────────────────────────────────────────────────────
+function toggleNuevaCat(){
+  var sel = document.getElementById('f-cat');
+  var wrap = document.getElementById('nueva-cat-wrap');
+  if(sel && wrap) wrap.style.display = sel.value === '__nueva__' ? 'block' : 'none';
+}
+
 function saveProd(){
   var n = document.getElementById('f-nom').value.trim();
   if(!n){ snack('El nombre es obligatorio'); return; }
   var obj = {
     cod: document.getElementById('f-cod').value || ('BM-'+String(Date.now()).slice(-3)),
     nombre: n,
-    cat: document.getElementById('f-cat').value,
+    cat: (function(){
+      var sel = document.getElementById('f-cat').value;
+      if(sel === '__nueva__'){
+        var nc = (document.getElementById('nueva-cat-input').value||'').trim();
+        if(!nc){ snack('Escribí el nombre de la nueva categoría'); return null; }
+        // Agregar categoría si no existe
+        if(!categorias.find(function(c){ return c.nombre===nc; })){
+          categorias.push({id: Date.now(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
+          save(); saveProductosProveedores(); popCatSelects();
+        }
+        return nc;
+      }
+      return sel;
+    })(),
     costo: parseFloat(document.getElementById('f-costo').value)||0,
     margen: parseFloat(document.getElementById('f-margen').value)||80,
     prov: document.getElementById('f-prov').value||'',
     notas: document.getElementById('f-notas').value||''
   };
+  if(obj.cat === null) return; // nueva cat sin nombre
   if(editId){
     var i = productos.findIndex(function(p){ return p.id===editId; });
     productos[i] = Object.assign(productos[i], obj);
