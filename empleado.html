@@ -75,6 +75,7 @@ html,body{
   background:var(--paper);
 }
 .page.active{display:block}
+#pos.active{display:flex !important}
 
 /* POS page uses flex column — products scroll, cart stays visible at bottom */
 #pos.active{
@@ -97,7 +98,7 @@ html,body{
 }
 
 /* SEARCH */
-.pos-search-wrap{position:relative;padding:10px 12px 8px}
+.pos-search-wrap{position:relative;padding:10px 12px 8px;z-index:500}
 .pos-si{
   width:100%;font-size:15px;
   padding:12px 16px 12px 44px;
@@ -109,9 +110,9 @@ html,body{
 .pos-si:focus{border-color:var(--gold)}
 .pos-sic{position:absolute;left:24px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none}
 .pos-dd{
-  position:absolute;top:calc(100% - 10px);left:12px;right:12px;
+  position:absolute;top:100%;left:0;right:0;
   background:var(--surf);border:1px solid var(--bord2);border-radius:var(--radl);
-  box-shadow:var(--shl);z-index:200;max-height:240px;overflow-y:auto;display:none;
+  box-shadow:var(--shl);z-index:9999;max-height:240px;overflow-y:auto;display:none;
 }
 .pos-dd.open{display:block}
 .pos-ddi{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bord2);display:flex;align-items:center;justify-content:space-between}
@@ -1766,7 +1767,8 @@ function rProd(){
   var slice=list.slice((prodPage-1)*PROD_PER, prodPage*PROD_PER);
   document.getElementById('prod-tbody').innerHTML = slice.length
     ? slice.map(function(p){
-        return '<tr><td style="font-size:11px;color:var(--ink4);font-weight:600">'+p.cod+'</td>'+
+        return '<tr onclick="addFromProd('+p.id+')" style="cursor:pointer;-webkit-tap-highlight-color:rgba(201,146,42,.15)">'+
+          '<td style="font-size:11px;color:var(--ink4);font-weight:600">'+p.cod+'</td>'+
           '<td style="font-weight:500">'+p.nombre+'</td>'+
           '<td><span class="ptag">'+$p(pv(p))+'</span></td></tr>';
       }).join('')
@@ -1950,6 +1952,13 @@ function renderCart(){
     '</div>';
   }).join('');
   updTotal();
+}
+
+function addFromProd(pid){
+  addToCart(pid);
+  // Switch to POS tab so user sees the cart
+  var posBtn = document.querySelector('.bn:first-child');
+  nav('pos', posBtn);
 }
 
 function cobrar(metodo){
