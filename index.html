@@ -1579,15 +1579,10 @@ var ventas = JSON.parse(localStorage.getItem('bm_vent') || 'null') || [
   {id:5,fecha:'2026-04-22',pid:5,nombre:'Torre de aprendizaje',cat:'Montessori',cant:2,cu:14000,pu:25200,estado:'Ganada',notas:''},
 ];
 var proveedores = [
-  {id:1,nombre:'Pinarcis',rubro:'Fábrica muebles de pino',contacto:'Ventas',tel:'(011) 4745-6809 / 15-5619-6331',cond:'Contado',entrega:7,notas:'Av. Juan B. Justo 2516, San Fernando. ventas@pinarcis.com.ar — Lista N°46 Abril 2026'},
-  {id:2,nombre:'MyM Fibrofacil',rubro:'Juegos Montessori / Fibrofácil',contacto:'Ventas',tel:'11 5933-9958',cond:'Contado',entrega:5,notas:'Av. Juan B. Justo 1293, San Fernando. mymfibrofacil@gmail.com — Lista 98F Abril 2026. Promo: 10+1 sin cargo'},
-  {id:3,nombre:'MyM Pino',rubro:'Muebles de Pino',contacto:'Ventas',tel:'11 6004-9643',cond:'Contado',entrega:5,notas:'Av. Juan B. Justo 1293, San Fernando. mympino1@gmail.com — Lista 98P Abril 2026. 10% descuento desarmado en toalleras y arrime'},
-  {id:3,nombre:'Proveedor A',rubro:'Muebles stock',contacto:'Juan Pérez',tel:'11-4455-6677',cond:'Contado / 30 días',entrega:7,notas:''},
-  {id:4,nombre:'Proveedor B',rubro:'Madera / repisas',contacto:'María López',tel:'11-2233-4455',cond:'Contado',entrega:3,notas:''},
-  {id:5,nombre:'Fábrica XYZ',rubro:'Muebles a medida',contacto:'Roberto Sánchez',tel:'11-5566-7788',cond:'50% adelanto',entrega:15,notas:'Medidas exactas'},
-,
-  {id:4, nombre:'TRASH', rubro:'Diseños en Madera', contacto:'', tel:'', cond:'', entrega:7, notas:'Lista precios + 10% costo'}
-,
+  {id:1, nombre:'Pinarcis', rubro:'Fábrica muebles de pino', contacto:'Ventas', tel:'(011) 4745-6809 / 15-5619-6331', cond:'Contado', entrega:7, notas:'Av. Juan B. Justo 2516, San Fernando. ventas@pinarcis.com.ar'},
+  {id:2, nombre:'MyM Fibrofacil', rubro:'Juegos Montessori / Fibrofácil', contacto:'Ventas', tel:'11 5933-9958', cond:'Contado', entrega:5, notas:'Av. Juan B. Justo 1293, San Fernando. mymfibrofacil@gmail.com'},
+  {id:3, nombre:'MyM Pino', rubro:'Muebles de Pino', contacto:'Ventas', tel:'11 6004-9643', cond:'Contado', entrega:5, notas:'Av. Juan B. Justo 1293, San Fernando. mympino1@gmail.com'},
+  {id:4, nombre:'TRASH', rubro:'Diseños en Madera', contacto:'', tel:'', cond:'Contado', entrega:7, notas:'Lista precios + 10% costo'},
   {id:5, nombre:'Fabrica UNO', rubro:'Fábrica de Muebles', contacto:'', tel:'112293-3668', cond:'Efectivo', entrega:7, notas:'French 97 y Pasaje González, San Fernando'}
 ];
 var cotizaciones = JSON.parse(localStorage.getItem('bm_cot') || 'null') || [
