@@ -1453,8 +1453,12 @@ function loadFromSheets(onDone){
   // Cargar productos como JSON
   loadTableJSON('productos', function(err, data){
     if(!err && data && data.ok && data.data && data.data.length > 0){
+      // Sheets tiene datos — usarlos
       productos = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0}); });
       ok++;
+    } else {
+      // Sheets vacío — subir los productos actuales
+      setTimeout(function(){ saveTableAsJSON('productos', productos); }, 2000);
     }
     checkDone();
   });
@@ -1464,6 +1468,9 @@ function loadFromSheets(onDone){
     if(!err && data && data.ok && data.data && data.data.length > 0){
       proveedores = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
       ok++;
+    } else {
+      // Sheets vacío — subir los proveedores actuales
+      setTimeout(function(){ saveTableAsJSON('proveedores', proveedores); }, 3000);
     }
     checkDone();
   });
@@ -2742,7 +2749,7 @@ if(localStorage.getItem('bm_data_version') !== DATA_VERSION){
   localStorage.removeItem('bm_cats');
   localStorage.setItem('bm_data_version', DATA_VERSION);
 }
-// Cargar localStorage como punto de partida (mientras llega Sheets)
+// Cargar localStorage como punto de partida (Sheets puede sobreescribir después)
 ventas        = JSON.parse(localStorage.getItem('bm_vent') || 'null') || ventas;
 pedidos       = JSON.parse(localStorage.getItem('bm_ped')  || 'null') || pedidos;
 cotizaciones  = JSON.parse(localStorage.getItem('bm_cot')  || 'null') || cotizaciones;
@@ -2759,6 +2766,9 @@ visitas       = JSON.parse(localStorage.getItem('bm_vis')  || 'null') || visitas
   var savedProv = JSON.parse(localStorage.getItem('bm_prov') || 'null');
   if(savedProv && savedProv.length > 0) proveedores = savedProv;
 })();
+// Renderizar inmediatamente con datos locales (no esperar a Sheets)
+popCatSelects();
+render();
 
 document.getElementById('sbdate').textContent = new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
 document.getElementById('vfecha').value = hoy();
@@ -2770,12 +2780,10 @@ var snackEl = document.getElementById('snack');
 snackEl.textContent = '⏳ Sincronizando con Google Sheets...';
 snackEl.classList.add('show');
 
-// Cargar desde Sheets y luego renderizar
+// Cargar desde Sheets y actualizar (ya renderizamos con datos locales arriba)
 loadFromSheets(function(){
   popCatSelects();
   render();
-  // Sincronizar productos y proveedores a Sheets en cada apertura
-  saveProductosProveedores();
 });
 </script>
 </body>
