@@ -75,7 +75,7 @@ html,body{
   background:var(--paper);
 }
 .page.active{display:block}
-#pos.active{display:flex !important}
+.page.pos-flex.active{display:flex}
 
 /* POS page uses flex column — products scroll, cart stays visible at bottom */
 #pos.active{
@@ -281,7 +281,7 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- ══ PUNTO DE VENTA ══ -->
-<div id="pos" class="page active">
+<div id="pos" class="page pos-flex active">
 
   <!-- TOP: buscador + grilla de productos (scrolleable) -->
   <div class="pos-products">
@@ -416,7 +416,7 @@ tr:last-child td{border-bottom:none}
 <div class="snack" id="snack"></div>
 
 <script>
-var API_URL =  + API + ;
+var API_URL = 'https://script.google.com/macros/s/AKfycbzwMWFlUWK5e3b4co9i09pd-QnoXnsDWSF6LsLnUY29loq-el6SV-gfRtFLwpgSK2FOYg/exec';
 
 // ── DATA ────────────────────────────────────────────────────────────────────
 var productos = [
