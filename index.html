@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Balu Madera — Gestión</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1716,136 +1719,47 @@ var categorias = [
 ];
 var pedidos = JSON.parse(localStorage.getItem('bm_ped') || 'null') || [];
 
-// ── GOOGLE SHEETS API ────────────────────────────────────────────────────────
-var API_URL = 'https://script.google.com/macros/s/AKfycbzwMWFlUWK5e3b4co9i09pd-QnoXnsDWSF6LsLnUY29loq-el6SV-gfRtFLwpgSK2FOYg/exec';
+// ── FIREBASE ─────────────────────────────────────────────────────────────────
+// SDK via CDN — cargado en el <head>
+var FB_DB = null; // se inicializa en init
 
-// JSONP helper — carga una URL como script y llama callback(err, data)
-function jsonp(url, callback){
-  var cbName = 'bm_' + Date.now() + '_' + Math.floor(Math.random()*99999);
-  var done = false;
-  var timer = setTimeout(function(){
-    if(done) return; done=true;
-    window[cbName]=null;
-    var s=document.getElementById(cbName); if(s) s.parentNode.removeChild(s);
-    callback(new Error('timeout'), null);
-  }, 15000);
-  window[cbName] = function(data){
-    if(done) return; done=true;
-    clearTimeout(timer);
-    window[cbName]=null;
-    var s=document.getElementById(cbName); if(s) s.parentNode.removeChild(s);
-    callback(null, data);
-  };
-  var script = document.createElement('script');
-  script.id = cbName;
-  script.src = url + '&callback=' + cbName;
-  script.onerror = function(){
-    if(done) return; done=true;
-    clearTimeout(timer);
-    window[cbName]=null;
-    callback(new Error('script error'), null);
-  };
-  document.head.appendChild(script);
+function fbRef(path){
+  return firebase.database().ref(path);
 }
 
-// GUARDAR tabla pequeña (ventas, pedidos, visitas, etc.) — filas normales
-function saveTable(table, data){
-  var cols = COLS[table]; if(!cols) return;
-  var rows = [cols];
-  data.forEach(function(o){
-    rows.push(cols.map(function(c){
-      return (c==='items' && typeof o[c]==='object') ? JSON.stringify(o[c]||[]) : (o[c]!==undefined ? o[c] : '');
-    }));
-  });
-  // Enviar de a chunks de 30 filas para no superar límite de URL
-  var header = rows[0];
-  var dataRows = rows.slice(1);
-  var CHUNK = 30;
-  for(var i=0; i<Math.max(1,dataRows.length); i+=CHUNK){
-    (function(chunk, isFirst){
-      var toSend = isFirst ? [header].concat(chunk) : chunk;
-      var url = API_URL + '?action=' + (isFirst?'save':'append') +
-        '&table=' + encodeURIComponent(table) +
-        '&rows=' + encodeURIComponent(JSON.stringify(toSend));
-      if(url.length > 7000){
-        // Still too long — halve the chunk
-        var half = Math.ceil(chunk.length/2);
-        var url1 = API_URL + '?action=' + (isFirst?'save':'append') +
-          '&table=' + encodeURIComponent(table) +
-          '&rows=' + encodeURIComponent(JSON.stringify(isFirst ? [header].concat(chunk.slice(0,half)) : chunk.slice(0,half)));
-        var url2 = API_URL + '?action=append' +
-          '&table=' + encodeURIComponent(table) +
-          '&rows=' + encodeURIComponent(JSON.stringify(chunk.slice(half)));
-        jsonp(url1, function(){});
-        setTimeout(function(){ jsonp(url2, function(){}); }, 300);
-        return;
-      }
-      jsonp(url, function(){});
-    })(dataRows.slice(i, i+CHUNK), i===0);
-  }
-}
-
-// GUARDAR tabla grande — primero borra, luego agrega parte por parte
-function saveTableAsJSON(table, data){
-  var PART = 40;
-  var parts = [];
-  for(var i=0; i<Math.max(1,data.length); i+=PART){
-    parts.push(data.slice(i, i+PART));
-  }
-  // Mandar cada parte con delay, la primera limpia la tabla
-  parts.forEach(function(part, idx){
-    setTimeout(function(){
-      var url = API_URL + '?action=savejson' +
-        '&table=' + encodeURIComponent(table) +
-        '&part=' + idx +
-        '&total=' + parts.length +
-        '&json=' + encodeURIComponent(JSON.stringify(part));
-      jsonp(url, function(err, res){
-        if(err) console.warn('Error parte '+idx+' de '+table, err);
-      });
-    }, idx * 800);
+// SAVE — guarda un objeto completo en Firebase
+function fbSet(path, data, cb){
+  fbRef(path).set(data, function(err){
+    if(cb) cb(err);
   });
 }
 
-// CARGAR tabla normal (filas)
-function loadTable(table, callback){
-  var url = API_URL + '?action=load&table=' + encodeURIComponent(table);
-  jsonp(url, callback);
-}
-
-// CARGAR tabla JSON
-function loadTableJSON(table, callback){
-  var url = API_URL + '?action=loadjson&table=' + encodeURIComponent(table);
-  jsonp(url, callback);
-}
-
-// Serialización helpers
-function rowsToObjs(rows){
-  if(!rows || rows.length < 2) return [];
-  var cols = rows[0];
-  return rows.slice(1).map(function(row){
-    var obj = {};
-    cols.forEach(function(c,i){ obj[c] = row[i]; });
-    return obj;
+// LOAD — lee una vez desde Firebase
+function fbGet(path, cb){
+  fbRef(path).once('value', function(snap){
+    cb(null, snap.val());
+  }, function(err){
+    cb(err, null);
   });
 }
 
-var COLS = {
-  ventas:       ['id','fecha','pid','nombre','cat','cant','cu','pu','estado','notas'],
-  pedidos:      ['id','fecha','cliente','detalle','total','sena','metSena','entrega','notas','estado','items'],
-  cotizaciones: ['id','fecha','cliente','detalle','monto','estado','motivo','seg'],
-  visitas:      ['id','fecha','tipo','det'],
-  categorias:   ['id','nombre','color'],
-  productos:    ['id','cod','nombre','cat','costo','margen','prov','notas','stock']
-};
+// ── SERIALIZACIÓN ────────────────────────────────────────────────────────────
+// Convierte array a objeto indexado por id (Firebase no soporta arrays con huecos)
+function arrToObj(arr){
+  var obj = {};
+  arr.forEach(function(item){
+    if(item && item.id) obj['id_' + item.id] = item;
+  });
+  return obj;
+}
+function objToArr(obj){
+  if(!obj) return [];
+  return Object.keys(obj).map(function(k){ return obj[k]; }).filter(Boolean);
+}
 
-// SAVE — tablas operativas en filas, productos/proveedores como JSON
+// ── SAVE ─────────────────────────────────────────────────────────────────────
 function save(){
-  saveTable('ventas',       ventas);
-  saveTable('pedidos',      pedidos);
-  saveTable('cotizaciones', cotizaciones);
-  saveTable('visitas',      visitas);
-  saveTable('categorias',   categorias);
+  // Siempre guardar en localStorage como respaldo instantáneo
   localStorage.setItem('bm_vent', JSON.stringify(ventas));
   localStorage.setItem('bm_cot',  JSON.stringify(cotizaciones));
   localStorage.setItem('bm_vis',  JSON.stringify(visitas));
@@ -1853,97 +1767,124 @@ function save(){
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
   localStorage.setItem('bm_prod', JSON.stringify(productos));
   localStorage.setItem('bm_prov', JSON.stringify(proveedores));
+
+  // Sincronizar a Firebase en segundo plano
+  if(typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+  try {
+    fbSet('ventas',       arrToObj(ventas));
+    fbSet('pedidos',      arrToObj(pedidos));
+    fbSet('cotizaciones', arrToObj(cotizaciones));
+    fbSet('visitas',      arrToObj(visitas));
+    fbSet('categorias',   arrToObj(categorias));
+  } catch(e){ console.warn('Firebase save error:', e); }
 }
 
-// SAVE productos y proveedores — llamar solo cuando se editan
 function saveProductosProveedores(){
-  // Save productos as rows (with stock column) so Sheets is readable
-  saveTable('productos', productos);
-  saveTableAsJSON('proveedores', proveedores);
   localStorage.setItem('bm_prod', JSON.stringify(productos));
   localStorage.setItem('bm_prov', JSON.stringify(proveedores));
+  try {
+    if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+      fbSet('productos',   arrToObj(productos));
+      fbSet('proveedores', arrToObj(proveedores));
+    }
+  } catch(e){ console.warn('Firebase save error:', e); }
 }
 
-// LOAD — carga todo desde Sheets al abrir
+function updateStockAfterSale(cartItems){
+  cartItems.forEach(function(item){
+    var prod = productos.find(function(p){ return p.id === item.pid; });
+    if(prod){
+      prod.stock = Math.max(0, (prod.stock||0) - item.qty);
+      // Update individual stock in Firebase
+      if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+        try { fbRef('productos/id_' + prod.id + '/stock').set(prod.stock); } catch(e){}
+      }
+    }
+  });
+  localStorage.setItem('bm_prod', JSON.stringify(productos));
+}
+
+// ── LOAD FROM FIREBASE ───────────────────────────────────────────────────────
 function loadFromSheets(onDone){
-  var smallTables = ['ventas','pedidos','cotizaciones','visitas','categorias'];
+  if(typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length){
+    snack('⚠️ Sin conexión — datos locales');
+    onDone();
+    return;
+  }
+
+  var tables = ['ventas','pedidos','cotizaciones','visitas','categorias','productos','proveedores'];
   var loaded = 0;
-  var total = smallTables.length + 2; // +2 para productos y proveedores
   var ok = 0;
 
   function checkDone(){
     loaded++;
-    if(loaded === total){
-      snack(ok > 0 ? '✓ Sincronizado con Google Sheets' : '⚠️ Sin conexión — datos locales');
+    if(loaded === tables.length){
+      snack(ok > 0 ? '✓ Sincronizado con Firebase' : '⚠️ Sin datos en la nube — usando locales');
       onDone();
     }
   }
 
-  // Cargar tablas operativas (filas)
-  smallTables.forEach(function(table){
-    loadTable(table, function(err, data){
-      if(!err && data && data.ok && data.rows && data.rows.length > 1){
-        var objs = rowsToObjs(data.rows);
+  tables.forEach(function(table){
+    fbGet(table, function(err, data){
+      if(!err && data){
+        var arr = objToArr(data);
         ok++;
-        if(table==='ventas'){
-          ventas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, pid:+o.pid||0, cant:+o.cant||1, cu:+o.cu||0, pu:+o.pu||0}); });
-        } else if(table==='pedidos'){
-          pedidos = objs.map(function(o){
+        if(table === 'ventas'){
+          ventas = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, pid:+o.pid||0, cant:+o.cant||1, cu:+o.cu||0, pu:+o.pu||0}); });
+          localStorage.setItem('bm_vent', JSON.stringify(ventas));
+        } else if(table === 'pedidos'){
+          pedidos = arr.map(function(o){
             var items=[]; try{ items=JSON.parse(o.items||'[]'); }catch(e){}
             return Object.assign(o,{id:+o.id||o.id, total:+o.total||0, sena:+o.sena||0, items:items});
           });
-        } else if(table==='cotizaciones'){
-          cotizaciones = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
-        } else if(table==='visitas'){
-          visitas = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
-        } else if(table==='categorias'){
-          if(objs.length >= categorias.length) categorias = objs.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
+          localStorage.setItem('bm_ped', JSON.stringify(pedidos));
+        } else if(table === 'cotizaciones'){
+          cotizaciones = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
+          localStorage.setItem('bm_cot', JSON.stringify(cotizaciones));
+        } else if(table === 'visitas'){
+          visitas = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
+          localStorage.setItem('bm_vis', JSON.stringify(visitas));
+        } else if(table === 'categorias'){
+          if(arr.length >= categorias.length){
+            categorias = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
+            localStorage.setItem('bm_cats', JSON.stringify(categorias));
+          } else {
+            // Firebase vacío — subir categorías
+            setTimeout(function(){ fbSet('categorias', arrToObj(categorias)); }, 1000);
+          }
+        } else if(table === 'productos'){
+          if(arr.length >= productos.length){
+            productos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0}); });
+            localStorage.setItem('bm_prod', JSON.stringify(productos));
+          } else {
+            // Firebase vacío o incompleto — subir catálogo
+            setTimeout(function(){ fbSet('productos', arrToObj(productos)); }, 1500);
+          }
+        } else if(table === 'proveedores'){
+          if(arr.length > 0){
+            var valid = arr.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
+            if(valid){
+              proveedores = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
+              localStorage.setItem('bm_prov', JSON.stringify(proveedores));
+            } else {
+              setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
+            }
+          } else {
+            setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
+          }
+        }
+      } else {
+        // Table empty or error — upload local data
+        var localData = {
+          'ventas': ventas, 'pedidos': pedidos, 'cotizaciones': cotizaciones,
+          'visitas': visitas, 'categorias': categorias, 'productos': productos, 'proveedores': proveedores
+        }[table];
+        if(localData && localData.length > 0){
+          setTimeout(function(){ fbSet(table, arrToObj(localData)); }, loaded * 500);
         }
       }
       checkDone();
     });
-  });
-
-  // Cargar productos como filas desde Sheets
-  loadTable('productos', function(err, data){
-    if(!err && data && data.ok && data.rows && data.rows.length > 1){
-      var objs = rowsToObjs(data.rows);
-      if(objs.length >= productos.length){
-        // Sheets tiene catálogo completo — usarlo (incluye stock actualizado)
-        productos = objs.map(function(o){
-          return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0});
-        });
-        localStorage.setItem('bm_prod', JSON.stringify(productos));
-        ok++;
-      } else {
-        // Sheets incompleto — subir catálogo completo
-        setTimeout(function(){ saveProductosProveedores(); }, 2000);
-      }
-    } else {
-      // Sheets vacío — subir catálogo completo
-      setTimeout(function(){ saveProductosProveedores(); }, 2000);
-    }
-    checkDone();
-  });
-
-  // Cargar proveedores como JSON
-  loadTableJSON('proveedores', function(err, data){
-    if(!err && data && data.ok && data.data && data.data.length >= proveedores.length){
-      // Sheets tiene todos los proveedores — usarlos
-      var loaded = data.data.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
-      // Solo usar si tienen campos válidos (no undefined)
-      var valid = loaded.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
-      if(valid){
-        proveedores = loaded;
-        ok++;
-      } else {
-        setTimeout(function(){ saveTableAsJSON('proveedores', proveedores); }, 2000);
-      }
-    } else {
-      // Sheets incompleto — subir los proveedores actuales
-      setTimeout(function(){ saveTableAsJSON('proveedores', proveedores); }, 3000);
-    }
-    checkDone();
   });
 }
 function hoy(){ return new Date().toISOString().slice(0,10); }
@@ -2728,8 +2669,8 @@ function delProd(id){
     save(); saveProductosProveedores(); render(); rProd(); snack('Eliminado');
   }
 }
-function delVenta(id){ if(confirm('¿Eliminar?')){ ventas=ventas.filter(function(v){ return v.id!==id; }); save(); saveProductosProveedores(); render(); snack('Eliminado'); } }
-function delCot(id){ if(confirm('¿Eliminar?')){ cotizaciones=cotizaciones.filter(function(c){ return c.id!==id; }); save(); saveProductosProveedores(); render(); snack('Eliminado'); } }
+function delVenta(id){ if(confirm('¿Eliminar?')){ ventas=ventas.filter(function(v){ return v.id!==id; }); save(); render(); snack('Venta eliminada ✓'); } }
+function delCot(id){ if(confirm('¿Eliminar?')){ cotizaciones=cotizaciones.filter(function(c){ return c.id!==id; }); save(); render(); snack('Cotización eliminada ✓'); } }
 function delVis(id){ if(confirm('¿Eliminar?')){ visitas=visitas.filter(function(v){ return v.id!==id; }); save(); saveProductosProveedores(); rVis(); snack('Eliminado'); } }
 function delProv(id){ if(confirm('¿Eliminar?')){ proveedores=proveedores.filter(function(p){ return p.id!==id; }); save(); saveProductosProveedores(); render(); snack('Eliminado'); } }
 
@@ -3355,12 +3296,25 @@ document.getElementById('vfecha').value = hoy();
 document.getElementById('tactions').innerHTML = pages.dashboard.a;
 popCatSelects();
 
-// Mostrar indicador de carga
+// Inicializar Firebase y cargar datos
 var snackEl = document.getElementById('snack');
-snackEl.textContent = '⏳ Sincronizando con Google Sheets...';
+snackEl.textContent = '⏳ Conectando con Firebase...';
 snackEl.classList.add('show');
 
-// Cargar desde Sheets y actualizar (ya renderizamos con datos locales arriba)
+try {
+  if(typeof firebase !== 'undefined' && !firebase.apps.length){
+    firebase.initializeApp({
+      apiKey: "AIzaSyBuHP-Q42uVCaTxD6LDzYkemealvkgIZkc",
+      authDomain: "balu-madera.firebaseapp.com",
+      databaseURL: "https://balu-madera-default-rtdb.firebaseio.com",
+      projectId: "balu-madera",
+      storageBucket: "balu-madera.firebasestorage.app",
+      messagingSenderId: "301826865966",
+      appId: "1:301826865966:web:6f3897abd440613f2b58bf"
+    });
+  }
+} catch(e){ console.warn('Firebase init:', e); }
+
 loadFromSheets(function(){
   popCatSelects();
   render();
