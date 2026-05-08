@@ -2373,9 +2373,9 @@ function openM(tipo, id){
         '<div class="fr"><label>Stock (unid.)</label><input id="f-stock" type="number" min="0" value="'+(p?p.stock||0:0)+'"></div>' +
         '<div class="fr" style="grid-column:1/-1"><label>Nombre *</label><input id="f-nom" type="text" value="'+(p?p.nombre:'')+'" placeholder="Ej: Mesa de centro roble natural"></div>' +
         '<div class="fr"><label>Categoría</label><div style="display:flex;gap:6px"><select id="f-cat" onchange="toggleNuevaCat()" style="flex:1">' + catOpts + '<option value="__nueva__">＋ Nueva categoría...</option></select></div><div id="nueva-cat-wrap" style="display:none;margin-top:6px"><input id="nueva-cat-input" type="text" placeholder="Nombre de la nueva categoría" style="width:100%"></div></div>' +
-        '<div class="fr"><label>Costo ($)</label><input id="f-costo" type="number" value="'+(p?p.costo:0)+'" min="0" oninput="calcPrev()"></div>' +
-        '<div class="fr"><label>Precio de venta ($)</label><input id="f-pventa" type="number" value="'+(p&&p.costo>0?Math.round(p.costo*(1+p.margen/100)):0)+'" min="0" oninput="calcMargenFromPventa()"></div>' +
-        '<div class="fr"><label>Margen (%)</label><input id="f-margen" type="number" value="'+(p?p.margen:80)+'" min="0" max="500" oninput="calcPrev()"></div>' +
+        '<div class="fr"><label>Costo ($)</label><input id="f-costo" type="number" value="'+(p?p.costo:0)+'" min="0" onblur="calcPrev()"></div>' +
+        '<div class="fr"><label>Precio de venta ($) — calculado del margen, o ingresá y el margen se ajusta</label><input id="f-pventa" type="number" value="'+(p&&p.costo>0?Math.round(p.costo*(1+p.margen/100)):0)+'" min="0" onblur="calcMargenFromPventa()"></div>' +
+        '<div class="fr"><label>Margen (%)</label><input id="f-margen" type="number" value="'+(p?p.margen:80)+'" min="0" max="500" onblur="calcPrev()"></div>' +
         '<div class="fr"><label>Proveedor</label><select id="f-prov"><option value="">Sin proveedor</option>'+provOpts+'</select></div>' +
         '<div class="fr"><label>Notas</label><input id="f-notas" type="text" value="'+(p?p.notas:'')+'" placeholder="Observaciones opcionales"></div>' +
       '</div>' +
