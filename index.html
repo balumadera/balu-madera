@@ -1930,8 +1930,15 @@ function popCatSelects(){
     });
     if(cur) fprov.value = cur;
   }
+  var sortedCats = categorias
+    .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
+    .slice()
+    .sort(function(a,b){
+      return a.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+        .localeCompare(b.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
+    });
   var opts = '<option value="">Todas las categorías</option>' +
-    categorias.map(function(c){
+    sortedCats.map(function(c){
       return '<option value="' + c.nombre + '">' + c.nombre + '</option>';
     }).join('');
   ['fc', 'fvc'].forEach(function(id){
