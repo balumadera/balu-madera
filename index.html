@@ -3179,8 +3179,12 @@ function saveProdRapido(addToCarrito){
 // ── CATEGORÍAS ────────────────────────────────────────────────────────────────
 function rCats(){
   var tbody = document.getElementById('cat-tbody'); if(!tbody) return;
-  tbody.innerHTML = categorias.length ? categorias.map(function(c){
-    var parts = c.color.split('|');
+  var sorted = categorias
+    .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
+    .slice()
+    .sort(function(a,b){ return a.nombre.localeCompare(b.nombre, 'es'); });
+  tbody.innerHTML = sorted.length ? sorted.map(function(c){
+    var parts = (c.color||'#F0EEE9|#5F5E5A').split('|');
     var count = productos.filter(function(p){ return p.cat===c.nombre; }).length;
     return '<tr>' +
       '<td style="font-weight:600">' + c.nombre + '</td>' +
@@ -3191,7 +3195,7 @@ function rCats(){
         '<button class="btn btn-sm btn-d" onclick="delCat(' + c.id + ')" ' + (count>0?'title="Tiene productos asignados"':'') + '>×</button>' +
       '</div></td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="4"><div class="empty"><div class="ei">🏷️</div><div class="et">No hay categorías. Agregá la primera.</div></div></td></tr>';
+  }).join('') : '<tr><td colspan="4"><div class="empty"><div class="ei">🏷️</div><div class="et">No hay categorías.</div></div></td></tr>';
 }
 
 function saveCat(){
