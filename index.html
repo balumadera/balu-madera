@@ -2048,17 +2048,25 @@ function rDash(){
     return '<tr><td><span class="lnk" onclick="openDP(' + p.id + ')">' + p.nombre + '</span></td><td>' + mpill(p.margen) + '</td><td><span class="ptag">' + $p(pventa(p)) + '</span></td></tr>';
   }).join('') : empty('📦','Cargá costos para ver rentabilidad');
 
-  var cats = ['Stock','Montessori','A Medida'];
-  var cc = {Stock:'var(--blue)',Montessori:'#7C3AED','A Medida':'var(--amber)'};
-  var cd = cats.map(function(cat){
-    var cv = vg.filter(function(v){ return v.cat===cat; });
-    return {cat:cat, g:cv.reduce(function(s,v){ return s+(v.pu-v.cu)*v.cant; },0), n:cv.length};
-  }).filter(function(d){ return d.n>0; });
+  // Construir análisis por categoría desde las ventas reales
+  var catMap = {};
+  vg.forEach(function(v){
+    var cat = v.cat || 'Sin categoría';
+    if(!catMap[cat]) catMap[cat] = {g:0, n:0};
+    catMap[cat].g += (v.pu - v.cu) * v.cant;
+    catMap[cat].n++;
+  });
+  var cd = Object.keys(catMap).map(function(cat){
+    return {cat:cat, g:catMap[cat].g, n:catMap[cat].n};
+  }).filter(function(d){ return d.n > 0; })
+    .sort(function(a,b){ return b.g - a.g; })
+    .slice(0, 10); // top 10 categorías
+  var barColors = ['var(--blue)','#7C3AED','var(--amber)','var(--green)','var(--wood)','#E11D48','#0891B2','#D97706','#059669','#7C3AED'];
   var mg = Math.max.apply(null, cd.map(function(d){ return d.g; }).concat([1]));
-  document.getElementById('dash-cats').innerHTML = cd.length ? cd.map(function(d){
+  document.getElementById('dash-cats').innerHTML = cd.length ? cd.map(function(d, i){
     return '<div style="display:flex;align-items:center;gap:13px;margin-bottom:13px">' +
-      '<div style="width:105px;font-size:13px;font-weight:500;color:var(--ink2);flex-shrink:0">' + d.cat + '</div>' +
-      '<div style="flex:1"><div class="pbar"><div class="pbf" style="width:' + Math.round(d.g/mg*100) + '%;background:' + cc[d.cat] + '"></div></div></div>' +
+      '<div style="width:130px;font-size:12px;font-weight:500;color:var(--ink2);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+d.cat+'">' + d.cat + '</div>' +
+      '<div style="flex:1"><div class="pbar"><div class="pbf" style="width:' + Math.round(d.g/mg*100) + '%;background:' + barColors[i % barColors.length] + '"></div></div></div>' +
       '<div style="font-size:13px;font-weight:600;width:88px;text-align:right">' + $p(d.g) + '</div></div>';
   }).join('') : '<div class="empty"><div class="ei">📊</div><div class="et">Registrá ventas para ver análisis</div></div>';
 }
