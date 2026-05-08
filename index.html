@@ -1846,7 +1846,14 @@ function loadFromSheets(onDone){
           localStorage.setItem('bm_vis', JSON.stringify(visitas));
         } else if(table === 'categorias'){
           if(arr.length >= categorias.length){
-            categorias = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
+            var cleaned = arr
+              .map(function(o){ return Object.assign(o,{id:+o.id||o.id}); })
+              .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; });
+            // Si habia entradas en blanco, limpiar Firebase tambien
+            if(cleaned.length < arr.length){
+              setTimeout(function(){ fbSet('categorias', arrToObj(cleaned)); }, 500);
+            }
+            categorias = cleaned;
             localStorage.setItem('bm_cats', JSON.stringify(categorias));
           } else {
             // Firebase vacío — subir categorías
@@ -3182,7 +3189,7 @@ function rCats(){
   var sorted = categorias
     .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
     .slice()
-    .sort(function(a,b){ return a.nombre.localeCompare(b.nombre, 'es'); });
+    .sort(function(a,b){ return a.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().localeCompare(b.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()); });
   tbody.innerHTML = sorted.length ? sorted.map(function(c){
     var parts = (c.color||'#F0EEE9|#5F5E5A').split('|');
     var count = productos.filter(function(p){ return p.cat===c.nombre; }).length;
@@ -3278,7 +3285,9 @@ cotizaciones  = JSON.parse(localStorage.getItem('bm_cot')  || 'null') || cotizac
 visitas       = JSON.parse(localStorage.getItem('bm_vis')  || 'null') || visitas;
 (function(){
   var saved = JSON.parse(localStorage.getItem('bm_cats') || 'null');
-  if(saved && saved.length >= categorias.length) categorias = saved;
+  if(saved && saved.length >= categorias.length){
+    categorias = saved.filter(function(c){ return c.nombre && c.nombre.trim() !== ''; });
+  }
 })();
 (function(){
   // No cargamos productos de localStorage — Firebase tiene prioridad
