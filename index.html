@@ -1853,11 +1853,12 @@ function loadFromSheets(onDone){
             setTimeout(function(){ fbSet('categorias', arrToObj(categorias)); }, 1000);
           }
         } else if(table === 'productos'){
-          if(arr.length >= productos.length){
+          if(arr.length > 0){
+            // Firebase tiene datos — SIEMPRE usar Firebase (tiene prioridad sobre el código)
             productos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0}); });
             localStorage.setItem('bm_prod', JSON.stringify(productos));
           } else {
-            // Firebase vacío o incompleto — subir catálogo
+            // Firebase vacío — subir catálogo completo por primera vez
             setTimeout(function(){ fbSet('productos', arrToObj(productos)); }, 1500);
           }
         } else if(table === 'proveedores'){
@@ -2922,14 +2923,15 @@ function updateCartPrice(pid, val){
 
 function updateStockAfterSale(cartItems){
   cartItems.forEach(function(item){
-    // Update in memory
-    var prod = productos.find(function(p){ return p.id === item.pid; });
-    if(prod) prod.stock = Math.max(0, (prod.stock||0) - item.qty);
-    // Update in Sheets via API
-    var url = API_URL + '?action=updatestock&pid=' + item.pid + '&delta=' + (-item.qty);
-    jsonp(url, null);
+    // Update stock in Firebase
+    var prod2 = productos.find(function(p){ return p.id === item.pid; });
+    if(prod2){
+      prod2.stock = Math.max(0, (prod2.stock||0) - item.qty);
+      if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+        try { fbRef('productos/id_' + prod2.id + '/stock').set(prod2.stock); } catch(e){}
+      }
+    }
   });
-  // Save updated productos to localStorage
   localStorage.setItem('bm_prod', JSON.stringify(productos));
 }
 
@@ -3275,13 +3277,8 @@ visitas       = JSON.parse(localStorage.getItem('bm_vis')  || 'null') || visitas
   if(saved && saved.length >= categorias.length) categorias = saved;
 })();
 (function(){
-  var savedProd = JSON.parse(localStorage.getItem('bm_prod') || 'null');
-  // Solo usar localStorage si tiene MAS productos que el catálogo base
-  if(savedProd && savedProd.length >= productos.length) productos = savedProd;
-  // Si tiene menos (datos corruptos), resetear al catálogo base
-  else if(savedProd && savedProd.length < productos.length){
-    localStorage.removeItem('bm_prod');
-  }
+  // No cargamos productos de localStorage — Firebase tiene prioridad
+  // Si Firebase está vacío, el catálogo hardcodeado se sube automáticamente
 })();
 (function(){
   var savedProv = JSON.parse(localStorage.getItem('bm_prov') || 'null');
