@@ -1765,8 +1765,7 @@ function save(){
   localStorage.setItem('bm_vis',  JSON.stringify(visitas));
   localStorage.setItem('bm_ped',  JSON.stringify(pedidos));
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
-  localStorage.setItem('bm_prod', JSON.stringify(productos));
-  localStorage.setItem('bm_prov', JSON.stringify(proveedores));
+  // Nota: productos y proveedores se guardan via saveProductosProveedores()
 
   // Sincronizar a Firebase en segundo plano
   if(typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
@@ -2623,7 +2622,7 @@ function saveProd(){
         // Agregar categoría si no existe
         if(!categorias.find(function(c){ return c.nombre===nc; })){
           categorias.push({id: Date.now(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
-          save(); saveProductosProveedores(); popCatSelects();
+          saveProductosProveedores(); popCatSelects();
         }
         return nc;
       }
@@ -2721,7 +2720,7 @@ function saveProv(){
     proveedores.push(obj);
     snack('Proveedor guardado ✓');
   }
-  save(); render(); closeM();
+  saveProductosProveedores(); render(); closeM();
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
