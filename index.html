@@ -1845,18 +1845,19 @@ function loadFromSheets(onDone){
           visitas = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
           localStorage.setItem('bm_vis', JSON.stringify(visitas));
         } else if(table === 'categorias'){
-          if(arr.length >= categorias.length){
+          if(arr.length > 0){
+            // Firebase tiene datos — siempre usar Firebase
             var cleaned = arr
               .map(function(o){ return Object.assign(o,{id:+o.id||o.id}); })
               .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; });
-            // Si habia entradas en blanco, limpiar Firebase tambien
+            // Si habia entradas en blanco, limpiar Firebase
             if(cleaned.length < arr.length){
               setTimeout(function(){ fbSet('categorias', arrToObj(cleaned)); }, 500);
             }
             categorias = cleaned;
             localStorage.setItem('bm_cats', JSON.stringify(categorias));
           } else {
-            // Firebase vacío — subir categorías
+            // Firebase vacío — subir categorías base por primera vez
             setTimeout(function(){ fbSet('categorias', arrToObj(categorias)); }, 1000);
           }
         } else if(table === 'productos'){
@@ -1870,14 +1871,22 @@ function loadFromSheets(onDone){
           }
         } else if(table === 'proveedores'){
           if(arr.length > 0){
+            // Firebase tiene datos — SIEMPRE usar Firebase (incluye proveedores agregados manualmente)
             var valid = arr.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
             if(valid){
               proveedores = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
               localStorage.setItem('bm_prov', JSON.stringify(proveedores));
-            } else {
-              setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
             }
+            // Si hay proveedores del código que no están en Firebase, agregarlos
+            proveedores.forEach(function(pBase){
+              var exists = arr.find(function(p){ return p.nombre === pBase.nombre; });
+              if(!exists){
+                proveedores.push(pBase);
+                setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
+              }
+            });
           } else {
+            // Firebase vacío — subir proveedores base por primera vez
             setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
           }
         }
