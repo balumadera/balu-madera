@@ -3138,8 +3138,8 @@ function openM_pedido_pago(id){
     '</div>' : '') +
     '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
       '<button class="btn" onclick="closeM()">Cancelar</button>' +
-      (saldo>0 ? '<button class="btn btn-g" onclick="savePago('+id+')">Guardar + registrar pago</button>' : '') +
-      '<button class="btn btn-p" onclick="savePedEdit('+id+')">Guardar cambios</button>' +
+      (saldo>0 ? '<button type="button" class="btn btn-g" onclick="savePago('+id+')">Guardar + registrar pago</button>' : '') +
+      '<button type="button" class="btn btn-p" onclick="savePedEdit('+id+')">Guardar cambios</button>' +
     '</div>';
   editId = id;
   document.getElementById('modal').classList.add('open');
@@ -3150,7 +3150,7 @@ function savePedEdit(pedId){
   p.estado  = document.getElementById('ped-est').value;
   p.entrega = document.getElementById('ped-ent').value||'';
   p.notas   = document.getElementById('ped-notas').value||'';
-  save(); render(); closeM(); snack('Pedido actualizado ✓');
+  closeM(); save(); render(); snack('Pedido actualizado ✓');
 }
 
 function savePago(pedId){
@@ -3163,13 +3163,14 @@ function savePago(pedId){
   p.estado  = est;
   p.entrega = document.getElementById('ped-ent').value||p.entrega;
   p.notas   = document.getElementById('ped-notas').value||p.notas;
+  // Registrar pago como venta
   ventas.push({
     id: Date.now(), fecha: hoy(), pid: 0,
     nombre: 'PAGO SALDO — ' + p.cliente,
-    cat: 'Stock', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
-    notas: 'Pago en ' + met + ' · ' + p.detalle.slice(0,50)
+    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
+    notas: 'Pago en ' + met + ' · ' + (p.detalle||'').slice(0,50)
   });
-  save(); render(); closeM();
+  closeM(); save(); render();
   snack('✓ Pago de ' + $p(monto) + ' registrado en ' + met);
 }
 
@@ -3294,6 +3295,7 @@ function saveCat(){
     categorias.push({id: Date.now(), nombre: nom, color: color});
     snack('Categoría creada ✓');
   }
+  localStorage.setItem('bm_cats', JSON.stringify(categorias));
   save(); popCatSelects(); render(); cancelEditCat();
 }
 
