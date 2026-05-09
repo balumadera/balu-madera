@@ -382,7 +382,7 @@ textarea{resize:vertical;min-height:68px}
             <input type="hidden" id="cat-edit-id" value="">
             <div style="display:flex;gap:8px;justify-content:flex-end">
               <button class="btn" onclick="cancelEditCat()" id="btn-cancel-cat" style="display:none">Cancelar</button>
-              <button class="btn btn-g" onclick="saveCat()">Guardar categoría</button>
+              <button class="btn btn-g" type="button" onclick="saveCat()">Guardar categoría</button>
             </div>
           </div>
         </div>
@@ -2398,7 +2398,7 @@ function openM(tipo, id){
       '<div id="cprev" class="cprev" style="display:none"></div>' +
       '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
         '<button class="btn" onclick="closeM()">Cancelar</button>' +
-        '<button class="btn btn-g" onclick="saveProd()">Guardar producto</button>' +
+        '<button type="button" class="btn btn-g" onclick="saveProd()">Guardar producto</button>' +
       '</div>';
     document.getElementById('mtitle').innerHTML = title + ' <button class="xb" onclick="closeM()">×</button>';
     document.getElementById('mbody').innerHTML = body;
@@ -2468,7 +2468,7 @@ function openM(tipo, id){
       '</div>' +
       '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
         '<button class="btn" onclick="closeM()">Cancelar</button>' +
-        '<button class="btn btn-g" onclick="saveProv()">Guardar proveedor</button>' +
+        '<button class="btn btn-g" type="button" onclick="saveProv()">Guardar proveedor</button>' +
       '</div>';
     document.getElementById('mtitle').innerHTML = title + ' <button class="xb" onclick="closeM()">×</button>';
     document.getElementById('mbody').innerHTML = body;
@@ -2490,7 +2490,7 @@ function openM(tipo, id){
       '<div id="ped-prev" class="cprev" style="display:none;margin-top:8px"></div>' +
       '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
         '<button class="btn" onclick="closeM()">Cancelar</button>' +
-        '<button class="btn btn-g" onclick="savePedido()">Guardar pedido</button>' +
+        '<button class="btn btn-g" type="button" onclick="savePedido()">Guardar pedido</button>' +
       '</div>';
     document.getElementById('modal').classList.add('open');
     return;
@@ -2643,7 +2643,7 @@ function saveProd(){
     productos.push(obj);
     snack('Producto guardado ✓');
   }
-  save(); render(); rProd(); closeM();
+  closeM(); saveProductosProveedores(); render(); rProd();
 }
 
 function saveVenta(){
