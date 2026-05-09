@@ -2381,7 +2381,11 @@ function openM(tipo, id){
 
   if(tipo==='prod'){
     var p = id ? productos.find(function(x){ return x.id===id; }) : null;
-    var catOpts = categorias.map(function(c){ return '<option value="'+c.nombre+'"'+(p&&p.cat===c.nombre?' selected':'')+'>'+c.nombre+'</option>'; }).join('');
+    var catOpts = categorias
+      .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
+      .slice()
+      .sort(function(a,b){ return a.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().localeCompare(b.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()); })
+      .map(function(c){ return '<option value="'+c.nombre+'"'+(p&&p.cat===c.nombre?' selected':'')+'>'+c.nombre+'</option>'; }).join('');
     title = (p?'Editar':'Nuevo') + ' producto';
     body =
       '<div class="fg">' +
@@ -2622,6 +2626,11 @@ function saveProd(){
         // Agregar categoría si no existe
         if(!categorias.find(function(c){ return c.nombre===nc; })){
           categorias.push({id: Date.now(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
+          // Guardar categoria nueva en Firebase
+          localStorage.setItem('bm_cats', JSON.stringify(categorias));
+          if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+            try { fbSet('categorias', arrToObj(categorias)); } catch(e){}
+          }
           saveProductosProveedores(); popCatSelects();
         }
         return nc;
