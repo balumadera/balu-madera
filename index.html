@@ -2475,6 +2475,7 @@ function openM(tipo, id){
     document.getElementById('mbody').innerHTML =
       '<div class="fg">' +
         '<div class="fr"><label>Cliente *</label><input id="ped-cli" type="text" placeholder="Nombre del cliente"></div>' +
+        '<div class="fr"><label>Teléfono / WhatsApp</label><input id="ped-tel" type="text" placeholder="Ej: 11-1234-5678"></div>' +
         '<div class="fr"><label>Detalle</label><input id="ped-det" type="text" placeholder="Ej: Mesa de luz nogal x2"></div>' +
         '<div class="fr"><label>Total ($) *</label><input id="ped-tot" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
         '<div class="fr"><label>Seña ($)</label><input id="ped-sena" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
@@ -2514,10 +2515,12 @@ function savePedido(){
   var ent  = (document.getElementById('ped-ent')||{}).value||'';
   var notas= (document.getElementById('ped-notas')||{}).value||'';
   var det  = (document.getElementById('ped-det')||{}).value||'';
+  var tel = (document.getElementById('ped-tel')||{}).value||'';
   pedidos.push({
     id: Date.now(),
     fecha: hoy(),
     cliente: cli.trim(),
+    tel: tel,
     detalle: det,
     total: tot,
     sena: sena,
@@ -2810,7 +2813,7 @@ function rPed(){
       : '<span class="saldo-chip saldo-ok">Saldado</span>';
     return '<tr>' +
       '<td style="font-size:12px;color:var(--ink3)">' + p.fecha + '</td>' +
-      '<td style="font-weight:600">' + p.cliente + '</td>' +
+      '<td style="font-weight:600">' + p.cliente + (p.tel ? '<br><span style="font-size:11px;color:var(--ink4);font-weight:400">' + p.tel + '</span>' : '') + '</td>' +
       '<td style="max-width:220px;font-size:13px">' + p.detalle + '</td>' +
       '<td style="font-weight:600">' + $p(p.total) + '</td>' +
       '<td style="color:var(--green-t);font-weight:600">' + $p(p.sena) + '</td>' +
@@ -3104,7 +3107,7 @@ function openM_pedido_pago(id){
   document.getElementById('mtitle').innerHTML = 'Pedido: ' + p.cliente + ' <button class="xb" onclick="closeM()">×</button>';
   document.getElementById('mbody').innerHTML =
     '<div style="background:var(--paper2);border-radius:var(--rad);padding:10px 13px;margin-bottom:14px;font-size:13px;line-height:1.7">' +
-      '<b>' + p.cliente + '</b> · ' + p.detalle + '<br>' +
+      '<b>' + p.cliente + '</b>' + (p.tel ? ' · 📱 ' + p.tel : '') + ' · ' + p.detalle + '<br>' +
       'Total: <b>' + $p(p.total) + '</b> · Seña cobrada: <b style="color:var(--green-t)">' + $p(p.sena) + '</b> · ' +
       'Saldo: <b style="color:' + (saldo>0?'var(--red-t)':'var(--green-t)') + '">' + (saldo>0 ? $p(saldo) : 'Saldado ✓') + '</b>' +
       (p.entrega ? '<br>Entrega est.: <b>' + p.entrega + '</b>' : '') +
