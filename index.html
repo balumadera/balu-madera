@@ -1825,80 +1825,71 @@ function loadFromSheets(onDone){
 
   tables.forEach(function(table){
     fbGet(table, function(err, data){
-      if(!err && data){
-        var arr = objToArr(data);
+      var arr = (!err && data) ? objToArr(data) : [];
+
+      if(arr.length > 0){
+        // ── FIREBASE TIENE DATOS → SIEMPRE USARLOS, NUNCA SOBREESCRIBIR ──
         ok++;
         if(table === 'ventas'){
           ventas = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, pid:+o.pid||0, cant:+o.cant||1, cu:+o.cu||0, pu:+o.pu||0}); });
           localStorage.setItem('bm_vent', JSON.stringify(ventas));
+
         } else if(table === 'pedidos'){
           pedidos = arr.map(function(o){
             var items=[]; try{ items=JSON.parse(o.items||'[]'); }catch(e){}
             return Object.assign(o,{id:+o.id||o.id, total:+o.total||0, sena:+o.sena||0, items:items});
           });
           localStorage.setItem('bm_ped', JSON.stringify(pedidos));
+
         } else if(table === 'cotizaciones'){
           cotizaciones = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
           localStorage.setItem('bm_cot', JSON.stringify(cotizaciones));
+
         } else if(table === 'visitas'){
           visitas = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id}); });
           localStorage.setItem('bm_vis', JSON.stringify(visitas));
+
         } else if(table === 'categorias'){
-          if(arr.length > 0){
-            // Firebase tiene datos — siempre usar Firebase
-            var cleaned = arr
-              .map(function(o){ return Object.assign(o,{id:+o.id||o.id}); })
-              .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; });
-            // Si habia entradas en blanco, limpiar Firebase
-            if(cleaned.length < arr.length){
-              setTimeout(function(){ fbSet('categorias', arrToObj(cleaned)); }, 500);
-            }
-            categorias = cleaned;
-            localStorage.setItem('bm_cats', JSON.stringify(categorias));
-          } else {
-            // Firebase vacío — subir categorías base por primera vez
-            setTimeout(function(){ fbSet('categorias', arrToObj(categorias)); }, 1000);
+          var cleaned = arr
+            .map(function(o){ return Object.assign(o,{id:+o.id||o.id}); })
+            .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; });
+          if(cleaned.length < arr.length){
+            setTimeout(function(){ fbSet('categorias', arrToObj(cleaned)); }, 500);
           }
+          categorias = cleaned;
+          localStorage.setItem('bm_cats', JSON.stringify(categorias));
+
         } else if(table === 'productos'){
-          if(arr.length > 0){
-            // Firebase tiene datos — SIEMPRE usar Firebase (tiene prioridad sobre el código)
-            productos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0}); });
-            localStorage.setItem('bm_prod', JSON.stringify(productos));
-          } else {
-            // Firebase vacío — subir catálogo completo por primera vez
-            setTimeout(function(){ fbSet('productos', arrToObj(productos)); }, 1500);
-          }
+          productos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0}); });
+          localStorage.setItem('bm_prod', JSON.stringify(productos));
+
         } else if(table === 'proveedores'){
-          if(arr.length > 0){
-            // Firebase tiene datos — SIEMPRE usar Firebase (incluye proveedores agregados manualmente)
-            var valid = arr.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
-            if(valid){
-              proveedores = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
-              localStorage.setItem('bm_prov', JSON.stringify(proveedores));
-            }
-            // Si hay proveedores del código que no están en Firebase, agregarlos
-            proveedores.forEach(function(pBase){
-              var exists = arr.find(function(p){ return p.nombre === pBase.nombre; });
-              if(!exists){
-                proveedores.push(pBase);
-                setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
-              }
-            });
-          } else {
-            // Firebase vacío — subir proveedores base por primera vez
-            setTimeout(function(){ fbSet('proveedores', arrToObj(proveedores)); }, 2000);
+          var valid = arr.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
+          if(valid){
+            proveedores = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, entrega:+o.entrega||0}); });
+            localStorage.setItem('bm_prov', JSON.stringify(proveedores));
           }
         }
+
       } else {
-        // Table empty or error — upload local data
-        var localData = {
-          'ventas': ventas, 'pedidos': pedidos, 'cotizaciones': cotizaciones,
-          'visitas': visitas, 'categorias': categorias, 'productos': productos, 'proveedores': proveedores
-        }[table];
-        if(localData && localData.length > 0){
-          setTimeout(function(){ fbSet(table, arrToObj(localData)); }, loaded * 500);
+        // ── FIREBASE VACÍO → SUBIR DATOS LOCALES UNA SOLA VEZ ──
+        // Solo para tablas estructurales (productos, categorías, proveedores)
+        // Para datos operativos (ventas, pedidos, etc.) NO subir nada automáticamente
+        var estructurales = ['productos', 'categorias', 'proveedores'];
+        if(estructurales.indexOf(table) >= 0){
+          var datos = {
+            'productos':   productos,
+            'categorias':  categorias,
+            'proveedores': proveedores
+          }[table];
+          if(datos && datos.length > 0){
+            setTimeout(function(){ fbSet(table, arrToObj(datos)); }, loaded * 500);
+          }
         }
+        // ventas, pedidos, cotizaciones, visitas → NUNCA se suben automáticamente
+        // Solo se guardan cuando el usuario registra algo explícitamente
       }
+
       checkDone();
     });
   });
