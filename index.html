@@ -3168,7 +3168,11 @@ function savePago(pedId){
 // ── PRODUCTO RÁPIDO DESDE POS ─────────────────────────────────────────────────
 function openProdRapido(){
   var provOpts = proveedores.map(function(p){ return '<option value="'+p.nombre+'">'+p.nombre+'</option>'; }).join('');
-  var catOpts  = categorias.map(function(c){ return '<option value="'+c.nombre+'">'+c.nombre+'</option>'; }).join('');
+  var catOpts = categorias
+    .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
+    .slice()
+    .sort(function(a,b){ return a.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().localeCompare(b.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()); })
+    .map(function(c){ return '<option value="'+c.nombre+'">'+c.nombre+'</option>'; }).join('');
   document.getElementById('mtitle').innerHTML = 'Nuevo producto rápido <button class="xb" onclick="closeM()">×</button>';
   document.getElementById('mbody').innerHTML =
     '<div style="font-size:12px;color:var(--ink3);background:var(--paper2);border-radius:var(--rad);padding:8px 12px;margin-bottom:14px">'+
