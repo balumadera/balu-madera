@@ -1896,7 +1896,7 @@ function loadFromSheets(onDone){
 }
 function hoy(){ return new Date().toISOString().slice(0,10); }
 function $p(n){ return '$' + Math.round(n).toLocaleString('es-AR'); }
-function pventa(p){ return p.costo * (1 + p.margen/100); }
+function pventa(p){ if(p.pventa_manual && p.pventa_manual > 0) return p.pventa_manual; return Math.round(p.costo * (1 + p.margen/100)); }
 function snack(msg){
   var s = document.getElementById('snack');
   s.textContent = msg; s.classList.add('show');
@@ -2549,8 +2549,20 @@ function calcMargenFromPventa(){
   var costo  = parseFloat(document.getElementById('f-costo')  ? document.getElementById('f-costo').value  : 0) || 0;
   var pventa = parseFloat(document.getElementById('f-pventa') ? document.getElementById('f-pventa').value : 0) || 0;
   if(costo > 0 && pventa > 0){
-    // Calcular margen con hasta 2 decimales
-    var margen = Math.round((pventa / costo - 1) * 10000) / 100;
+    // Guardar margen con precisión suficiente para recuperar el precio exacto
+    // Usamos 10 decimales internamente para que costo*(1+margen/100) = pventa exacto
+    var margen = (pventa / costo - 1) * 100;
+    // Verificar que el redondeo da el precio exacto
+    // Si no, ajustar decimales hasta que lo dé
+    var precision = 2;
+    while(precision <= 10){
+      var m = Math.round(margen * Math.pow(10, precision)) / Math.pow(10, precision);
+      if(Math.round(costo * (1 + m/100)) === pventa){
+        margen = m;
+        break;
+      }
+      precision++;
+    }
     var mEl = document.getElementById('f-margen');
     if(mEl) mEl.value = margen;
   }
@@ -2633,6 +2645,7 @@ function saveProd(){
     })(),
     costo: parseFloat(document.getElementById('f-costo').value)||0,
     margen: parseFloat(document.getElementById('f-margen').value)||80,
+    pventa_manual: (_lastEditedField === 'pventa' && document.getElementById('f-pventa') && parseFloat(document.getElementById('f-pventa').value) > 0) ? parseFloat(document.getElementById('f-pventa').value) : 0,
     prov: document.getElementById('f-prov').value||'',
     notas: document.getElementById('f-notas').value||''
   };
@@ -2646,7 +2659,7 @@ function saveProd(){
     productos.push(obj);
     snack('Producto guardado ✓');
   }
-  closeM(); saveProductosProveedores(); render(); rProd();
+  _lastEditedField = ''; closeM(); saveProductosProveedores(); render(); rProd();
 }
 
 function saveVenta(){
