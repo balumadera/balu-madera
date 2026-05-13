@@ -3198,8 +3198,9 @@ function openProdRapido(){
       '<div class="fr" style="grid-column:1/-1"><label>Nombre del producto *</label><input id="qp-nom" type="text" placeholder="Ej: Mesa ratona roble natural" autofocus></div>' +
       '<div class="fr"><label>Código</label><input id="qp-cod" type="text" placeholder="Ej: BM-009 (opcional)"></div>' +
       '<div class="fr"><label>Categoría</label><select id="qp-cat">' + catOpts + '</select></div>' +
-      '<div class="fr"><label>Costo ($)</label><input id="qp-costo" type="number" value="0" min="0" oninput="calcQP()"></div>' +
-      '<div class="fr"><label>Margen (%)</label><input id="qp-margen" type="number" value="80" min="0" max="500" oninput="calcQP()"></div>' +
+      '<div class="fr"><label>Costo ($)</label><input id="qp-costo" type="number" value="0" min="0" onblur="calcQP()"></div>' +
+      '<div class="fr"><label>Precio de venta ($)</label><input id="qp-pventa" type="number" value="0" min="0" onblur="calcQPFromPventa()"></div>' +
+      '<div class="fr"><label>Margen (%)</label><input id="qp-margen" type="number" value="80" min="0" max="500" onblur="calcQP()"></div>' +
       '<div class="fr"><label>Proveedor</label><select id="qp-prov"><option value="">Sin proveedor</option>'+provOpts+'</select></div>' +
       '<div class="fr"><label>Notas</label><input id="qp-notas" type="text" placeholder="Opcional"></div>' +
     '</div>' +
@@ -3212,14 +3213,44 @@ function openProdRapido(){
   document.getElementById('modal').classList.add('open');
 }
 
+var _qpLastField = '';
+
 function calcQP(){
+  _qpLastField = 'margen';
   var c = parseFloat(document.getElementById('qp-costo') ? document.getElementById('qp-costo').value : 0)||0;
   var m = parseFloat(document.getElementById('qp-margen') ? document.getElementById('qp-margen').value : 0)||0;
+  // Update pventa field
+  var pvEl = document.getElementById('qp-pventa');
+  if(pvEl && c > 0) pvEl.value = Math.round(c * (1 + m/100));
+  // Update preview
   var el = document.getElementById('qp-prev'); if(!el) return;
-  if(c>0){
+  if(c > 0){
+    var pv = Math.round(c*(1+m/100));
     el.style.display='block';
-    el.innerHTML = '<strong>' + $p(c*(1+m/100)) + '</strong>Precio de venta con ' + m + '% · Ganancia/ud: <b>' + $p(c*m/100) + '</b>';
+    el.innerHTML = '<strong>' + $p(pv) + '</strong> · Margen ' + m + '% · Ganancia: <b>' + $p(c*m/100) + '</b>';
   } else el.style.display='none';
+}
+
+function calcQPFromPventa(){
+  _qpLastField = 'pventa';
+  var c = parseFloat(document.getElementById('qp-costo') ? document.getElementById('qp-costo').value : 0)||0;
+  var pv = parseFloat(document.getElementById('qp-pventa') ? document.getElementById('qp-pventa').value : 0)||0;
+  if(c > 0 && pv > 0){
+    // Calculate exact margin with enough precision to recover the price
+    var margen = (pv / c - 1) * 100;
+    var precision = 2;
+    while(precision <= 10){
+      var m = Math.round(margen * Math.pow(10, precision)) / Math.pow(10, precision);
+      if(Math.round(c * (1 + m/100)) === pv){ margen = m; break; }
+      precision++;
+    }
+    var mEl = document.getElementById('qp-margen');
+    if(mEl) mEl.value = margen;
+    // Update preview
+    var el = document.getElementById('qp-prev'); if(!el) return;
+    el.style.display='block';
+    el.innerHTML = '<strong>' + $p(pv) + '</strong> · Margen ' + margen + '% · Ganancia: <b>' + $p(pv-c) + '</b>';
+  }
 }
 
 function saveProdRapido(addToCarrito){
@@ -3235,6 +3266,7 @@ function saveProdRapido(addToCarrito){
     costo:  costo,
     margen: margen,
     prov:   document.getElementById('qp-prov').value||'',
+    pventa_manual: (_qpLastField === 'pventa' && document.getElementById('qp-pventa') && parseFloat(document.getElementById('qp-pventa').value) > 0) ? parseFloat(document.getElementById('qp-pventa').value) : 0,
     notas:  document.getElementById('qp-notas').value||''
   };
   productos.push(newProd);
