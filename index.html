@@ -3090,21 +3090,15 @@ function saveSena(){
   var fechaEl = document.getElementById('pos-fecha');
   var fechaVenta = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
   var telSena = document.getElementById('sena-tel') ? document.getElementById('sena-tel').value||'' : '';
+  // Solo crear pedido — la venta se registra cuando se salda la deuda
+  var pedId = Date.now();
   pedidos.push({
-    id: Date.now(),
+    id: pedId,
     fecha: fechaVenta, cliente: cli, tel: telSena, detalle: det,
     total: tot, sena: sena, metSena: met,
     entrega: ent, notas: notas,
-    estado: (tot-sena)<=0 ? 'Parcialmente pagado' : 'Pendiente',
-    items: cart.map(function(i){ return {nombre:i.nombre, qty:i.qty, pu:i.pu}; })
-  });
-  ventas.push({
-    id: Date.now()+1, fecha: fechaVenta,
-    pid: cart[0] ? cart[0].pid : 0,
-    nombre: 'SEÑA — ' + cli,
-    cat: cart[0] ? cart[0].cat : 'Stock',
-    cant: 1, cu: 0, pu: sena, estado: 'Ganada',
-    notas: 'Seña en ' + met + ' · ' + det.slice(0,50) + ' · Saldo: ' + $p(Math.max(0,tot-sena))
+    estado: (tot-sena)<=0 ? 'Pagado' : 'Pendiente',
+    items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; })
   });
   save(); render(); closeM();
   cart = [];
@@ -3172,15 +3166,38 @@ function savePago(pedId){
   p.estado  = est;
   p.entrega = document.getElementById('ped-ent').value||p.entrega;
   p.notas   = document.getElementById('ped-notas').value||p.notas;
-  // Registrar pago como venta
-  ventas.push({
-    id: Date.now(), fecha: hoy(), pid: 0,
-    nombre: 'PAGO SALDO — ' + p.cliente,
-    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
-    notas: 'Pago en ' + met + ' · ' + (p.detalle||'').slice(0,50)
-  });
+  var saldoRestante = p.total - p.sena;
+  // Registrar el pago como venta
+  if(saldoRestante <= 0){
+    // Pedido completamente saldado — registrar venta completa con todos los ítems
+    var items = p.items && p.items.length ? p.items : [{nombre: p.detalle, qty:1, pu:p.total, cu:0, cat:'Pedidos'}];
+    items.forEach(function(item){
+      ventas.push({
+        id: Date.now() + Math.random()*100|0,
+        fecha: hoy(),
+        pid: item.pid || 0,
+        nombre: item.nombre,
+        cat: item.cat || 'Pedidos',
+        cant: item.qty || 1,
+        cu: item.cu || 0,
+        pu: item.pu,
+        estado: 'Ganada',
+        notas: 'Pago final en ' + met + ' · Encargo de ' + p.cliente
+      });
+    });
+    p.estado = 'Entregado';
+    snack('✓ Pedido de ' + p.cliente + ' saldado y registrado como venta ✓');
+  } else {
+    // Pago parcial — solo registrar el pago
+    ventas.push({
+      id: Date.now(), fecha: hoy(), pid: 0,
+      nombre: 'PAGO PARCIAL — ' + p.cliente,
+      cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
+      notas: 'Pago en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+    });
+    snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
+  }
   closeM(); save(); render();
-  snack('✓ Pago de ' + $p(monto) + ' registrado en ' + met);
 }
 
 // ── PRODUCTO RÁPIDO DESDE POS ─────────────────────────────────────────────────
