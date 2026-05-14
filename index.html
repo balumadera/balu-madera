@@ -3045,7 +3045,8 @@ function openModalSena(){
   document.getElementById('mtitle').innerHTML = 'Encargo con seña <button class="xb" onclick="closeM()">×</button>';
   document.getElementById('mbody').innerHTML =
     '<div class="fg">' +
-      '<div class="fr" style="grid-column:1/-1"><label>Cliente *</label><input id="sena-cli" type="text" value="' + cli + '" placeholder="Nombre del cliente"></div>' +
+      '<div class="fr"><label>Cliente *</label><input id="sena-cli" type="text" value="' + cli + '" placeholder="Nombre del cliente"></div>' +
+      '<div class="fr"><label>Teléfono / WhatsApp</label><input id="sena-tel" type="text" placeholder="Ej: 11-1234-5678"></div>' +
       '<div class="fr" style="grid-column:1/-1"><label>Detalle del encargo</label><input id="sena-det" type="text" value="' + detalle + '" placeholder="Descripción del pedido"></div>' +
       '<div class="fr"><label>Total del pedido ($)</label><input id="sena-tot" type="number" value="' + total + '" min="0" oninput="calcSenaResto()"></div>' +
       '<div class="fr"><label>Seña recibida ($) *</label><input id="sena-val" type="number" value="0" min="0" oninput="calcSenaResto()"></div>' +
@@ -3088,9 +3089,10 @@ function saveSena(){
   var notas = document.getElementById('sena-notas').value||'';
   var fechaEl = document.getElementById('pos-fecha');
   var fechaVenta = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
+  var telSena = document.getElementById('sena-tel') ? document.getElementById('sena-tel').value||'' : '';
   pedidos.push({
     id: Date.now(),
-    fecha: fechaVenta, cliente: cli, detalle: det,
+    fecha: fechaVenta, cliente: cli, tel: telSena, detalle: det,
     total: tot, sena: sena, metSena: met,
     entrega: ent, notas: notas,
     estado: (tot-sena)<=0 ? 'Parcialmente pagado' : 'Pendiente',
