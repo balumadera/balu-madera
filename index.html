@@ -407,6 +407,7 @@ textarea{resize:vertical;min-height:68px}
         <select id="fvm" onchange="rVentas()"><option value="">Todos los meses</option></select>
         <select id="fvc" onchange="rVentas()"><option value="">Todas las categorías</option></select>
         <select id="fve" onchange="rVentas()"><option value="">Todos los estados</option><option>Ganada</option><option>Pendiente</option><option>Cancelada</option></select>
+        <select id="fvmet" onchange="ventPage=1;rVentas()"><option value="">Todos los métodos</option><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option><option>MercadoPago</option></select>
       </div>
       <div class="card">
         <table><thead><tr><th>Fecha</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>P.Unit.</th><th>Total</th><th>Ganancia</th><th>Estado</th><th></th></tr></thead>
@@ -2159,10 +2160,12 @@ function rVentas(){
   var mf = document.getElementById('fvm') ? document.getElementById('fvm').value : '';
   var cf = document.getElementById('fvc') ? document.getElementById('fvc').value : '';
   var ef = document.getElementById('fve') ? document.getElementById('fve').value : '';
+  var mef = document.getElementById('fvmet') ? document.getElementById('fvmet').value : '';
   var list = ventas.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
   if(mf) list = list.filter(function(v){ return v.fecha.slice(0,7)===mf; });
   if(cf) list = list.filter(function(v){ return v.cat===cf; });
   if(ef) list = list.filter(function(v){ return v.estado===ef; });
+  if(mef) list = list.filter(function(v){ return v.metodo===mef || (v.notas&&v.notas.indexOf(mef)>=0); });
   document.getElementById('vent-tbody').innerHTML = list.length ? list.map(function(v){
     var t=v.pu*v.cant, g=v.cu>0?(v.pu-v.cu)*v.cant:null;
     return '<tr><td style="font-size:12px;color:var(--ink3)">' + fmtFecha(v.fecha) + '</td>' +
@@ -3029,6 +3032,7 @@ function cobrar(metodo){
       id: Date.now() + Math.random(),
       fecha: fecha, pid: item.pid, nombre: item.nombre, cat: item.cat,
       cant: item.qty, cu: item.cu, pu: item.pu, estado: 'Ganada',
+      metodo: metodo,
       notas: (cli?'Cliente: '+cli+' · ':'') + 'Cobrado: ' + metodo
     });
   });
