@@ -333,7 +333,7 @@ textarea{resize:vertical;min-height:68px}
     <div id="pedidos" class="sec">
       <div class="kg" id="ped-kpis"></div>
       <div class="fb">
-        <select id="fped-est" onchange="rPed()"><option value="">Todos los estados</option><option>Pendiente</option><option>Parcialmente pagado</option><option>Entregado</option><option>Cancelado</option></select>
+        <select id="fped-est" onchange="rPed()"><option value="">Solo activos</option><option value="Todos">Todos</option><option>Pendiente</option><option>Parcialmente pagado</option><option>Entregado</option><option>Cancelado</option></select>
         <select id="fped-mes" onchange="rPed()"><option value="">Todos los meses</option></select>
       </div>
       <div class="card">
@@ -2827,7 +2827,14 @@ function rPed(){
   var ef = document.getElementById('fped-est') ? document.getElementById('fped-est').value : '';
   var mf = document.getElementById('fped-mes') ? document.getElementById('fped-mes').value : '';
   var list = pedidos.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
-  if(ef) list = list.filter(function(p){ return p.estado===ef; });
+  if(ef === 'Todos'){
+    // show all
+  } else if(ef){
+    list = list.filter(function(p){ return p.estado===ef; });
+  } else {
+    // Por defecto: mostrar solo activos (no entregados ni cancelados)
+    list = list.filter(function(p){ return p.estado!=='Entregado' && p.estado!=='Cancelado'; });
+  }
   if(mf) list = list.filter(function(p){ return p.fecha.slice(0,7)===mf; });
 
   document.getElementById('ped-tbody').innerHTML = list.length ? list.map(function(p){
@@ -2836,7 +2843,7 @@ function rPed(){
       ? '<span class="saldo-chip">' + $p(saldo) + '</span>'
       : '<span class="saldo-chip saldo-ok">Saldado</span>';
     return '<tr>' +
-      '<td style="font-size:12px;color:var(--ink3)">' + p.fecha + '</td>' +
+      '<td style="font-size:12px;color:var(--ink3)">' + fmtFecha(p.fecha) + '</td>' +
       '<td style="font-weight:600">' + p.cliente + (p.tel ? '<br><span style="font-size:11px;color:var(--ink4);font-weight:400">' + p.tel + '</span>' : '') + '</td>' +
       '<td style="max-width:220px;font-size:13px">' + p.detalle + '</td>' +
       '<td style="font-weight:600">' + $p(p.total) + '</td>' +
