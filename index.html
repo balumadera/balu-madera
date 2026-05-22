@@ -315,7 +315,7 @@ textarea{resize:vertical;min-height:68px}
             <div style="margin-bottom:8px">
               <div class="pos-totrow"><span>Subtotal</span><span id="pos-sub">$0</span></div>
               <div class="pos-totrow" style="color:var(--green-t)"><span>Ganancia est.</span><span id="pos-gan">$0</span></div>
-              <div class="pos-totmain"><span>TOTAL</span><span id="pos-tot" style="color:var(--wood)">$0</span></div>
+              <div class="pos-totmain"><span>TOTAL</span><input id="pos-tot" type="number" min="0" value="0" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--wood);width:140px;text-align:right;border:none;border-bottom:2px solid var(--wood);background:transparent;padding:0 2px" title="Tocá para editar el total final" onchange="updateTotalManual()"></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
               <button class="pos-pbtn ef" id="pb-ef" onclick="cobrar('Efectivo')" disabled>💵 Efectivo</button>
@@ -1790,6 +1790,12 @@ function saveProductosProveedores(){
   } catch(e){ console.warn('Firebase save error:', e); }
 }
 
+function updateTotalManual(){
+  // User edited the total directly - store as override
+  var totEl = document.getElementById('pos-tot');
+  if(totEl) totEl.dataset.manual = '1';
+}
+
 function updateStockAfterSale(cartItems){
   cartItems.forEach(function(item){
     var prod = productos.find(function(p){ return p.id === item.pid; });
@@ -2996,7 +3002,8 @@ function renderCart(){
   var gan   = cart.reduce(function(s,i){ return s+(i.pu-i.cu)*i.qty; }, 0);
   var subEl=document.getElementById('pos-sub'); if(subEl) subEl.textContent=$p(total);
   var ganEl=document.getElementById('pos-gan'); if(ganEl) ganEl.textContent=$p(gan);
-  var totEl=document.getElementById('pos-tot'); if(totEl) totEl.textContent=$p(total);
+  var totEl = document.getElementById('pos-tot');
+  if(totEl) totEl.value = total;
 }
 
 function updateCartPrice(pid, val){
@@ -3012,7 +3019,7 @@ function updateCartPrice(pid, val){
   var gan   = cart.reduce(function(s,i){ return s+(i.pu-i.cu)*i.qty; }, 0);
   var subEl=document.getElementById('pos-sub'); if(subEl) subEl.textContent=$p(total);
   var ganEl=document.getElementById('pos-gan'); if(ganEl) ganEl.textContent=$p(gan);
-  var totEl=document.getElementById('pos-tot'); if(totEl) totEl.textContent=$p(total);
+  var totEl=document.getElementById('pos-tot'); if(totEl) totEl.value = total;
 }
 
 function updateStockAfterSale(cartItems){
@@ -3034,6 +3041,16 @@ function cobrar(metodo){
   var fechaEl = document.getElementById('pos-fecha');
   var fecha = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
   var cli = (document.getElementById('pos-cli') ? document.getElementById('pos-cli').value.trim() : '');
+  var subtotal = cart.reduce(function(s,i){ return s+i.pu*i.qty; }, 0);
+  var totEl = document.getElementById('pos-tot');
+  var totalManual = totEl ? parseFloat(totEl.value) || 0 : 0;
+  var total = totalManual > 0 ? totalManual : subtotal;
+  var nItems = cart.reduce(function(s,i){ return s+i.qty; }, 0);
+  // If total was manually changed, adjust prices proportionally BEFORE saving
+  if(totalManual > 0 && totalManual !== subtotal && subtotal > 0 && cart.length > 0){
+    var factor = totalManual / subtotal;
+    cart = cart.map(function(item){ return Object.assign({}, item, {pu: Math.round(item.pu * factor)}); });
+  }
   cart.forEach(function(item){
     ventas.push({
       id: Date.now() + Math.random(),
@@ -3043,8 +3060,6 @@ function cobrar(metodo){
       notas: (cli?'Cliente: '+cli+' · ':'') + 'Cobrado: ' + metodo
     });
   });
-  var total = cart.reduce(function(s,i){ return s+i.pu*i.qty; }, 0);
-  var nItems = cart.reduce(function(s,i){ return s+i.qty; }, 0);
   updateStockAfterSale(cart.slice());
   save();
   snack('✓ Cobrado ' + $p(total) + ' en ' + metodo + ' · ' + nItems + ' artículo' + (nItems>1?'s':''));
