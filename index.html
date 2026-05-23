@@ -1,4 +1,51 @@
-<!DOCTYPE html>
+<!DOCTYPE
+
+<!-- GASTOS -->
+<section id="gastos" class="sec">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div><h2 style="margin:0;font-size:22px">Gastos</h2><p style="margin:4px 0 0;color:var(--ink3);font-size:13px">Registro de egresos</p></div>
+    <button class="btn btn-g" onclick="openNuevoGasto()">+ Nuevo gasto</button>
+  </div>
+  <!-- Filtros -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+    <select id="fg-mes" onchange="rGastos()" style="padding:6px 10px;border:1px solid var(--bord);border-radius:6px;background:var(--paper);font-size:13px">
+      <option value="">Todos los meses</option>
+    </select>
+    <select id="fg-cat" onchange="rGastos()" style="padding:6px 10px;border:1px solid var(--bord);border-radius:6px;background:var(--paper);font-size:13px">
+      <option value="">Todas las categorías</option>
+      <option>Sueldo</option>
+      <option>Insumos</option>
+      <option>Gastos Generales</option>
+    </select>
+  </div>
+  <!-- Resumen -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+    <div class="card" style="text-align:center;padding:16px">
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">SUELDOS</div>
+      <div id="gres-sueldo" style="font-size:20px;font-weight:700;color:var(--wood)">$0</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px">
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">INSUMOS</div>
+      <div id="gres-insumos" style="font-size:20px;font-weight:700;color:var(--wood)">$0</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px">
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">GASTOS GENERALES</div>
+      <div id="gres-general" style="font-size:20px;font-weight:700;color:var(--wood)">$0</div>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--paper2)">
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--ink3)">FECHA</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--ink3)">DESCRIPCIÓN</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--ink3)">CATEGORÍA</th>
+        <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--ink3)">MONTO</th>
+        <th style="padding:10px 14px;text-align:center;font-size:11px;color:var(--ink3)"></th>
+      </tr></thead>
+      <tbody id="gastos-tbody"></tbody>
+    </table>
+  </div>
+</section> html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -243,6 +290,7 @@ textarea{resize:vertical;min-height:68px}
     <button class="ni" onclick="showTab('ventas',this)"><span class="ni-ic">◎</span>Ventas</button>
     <button class="ni" onclick="showTab('pedidos',this)"><span class="ni-ic">📦</span>Pedidos</button>
     <button class="ni" onclick="showTab('cotizaciones',this)"><span class="ni-ic">📋</span>Cotizaciones</button>
+    <button class="ni" onclick="showTab('gastos',this)"><span class="ni-ic">💸</span>Gastos</button>
     <button class="ni" onclick="showTab('visitas',this)"><span class="ni-ic">👥</span>Visitas al local</button>
     <div class="nl">Administración</div>
     <button class="ni" onclick="showTab('categorias',this)"><span class="ni-ic">🏷️</span>Categorías</button>
@@ -1720,6 +1768,7 @@ var categorias = [
 ];
 var pedidos = JSON.parse(localStorage.getItem('bm_ped') || 'null') || [];
 
+var gastos = JSON.parse(localStorage.getItem('bm_gast') || 'null') || [];
 // ── FIREBASE ─────────────────────────────────────────────────────────────────
 // SDK via CDN — cargado en el <head>
 var FB_DB = null; // se inicializa en init
@@ -1766,6 +1815,7 @@ function save(){
   localStorage.setItem('bm_vis',  JSON.stringify(visitas));
   localStorage.setItem('bm_ped',  JSON.stringify(pedidos));
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
+  localStorage.setItem('bm_gast', JSON.stringify(gastos));
   // Nota: productos y proveedores se guardan via saveProductosProveedores()
 
   // Sincronizar a Firebase en segundo plano
@@ -1776,6 +1826,7 @@ function save(){
     fbSet('cotizaciones', arrToObj(cotizaciones));
     fbSet('visitas',      arrToObj(visitas));
     fbSet('categorias',   arrToObj(categorias));
+    fbSet('gastos',       arrToObj(gastos));
   } catch(e){ console.warn('Firebase save error:', e); }
 }
 
@@ -1821,7 +1872,7 @@ function loadFromSheets(onDone){
     return;
   }
 
-  var tables = ['ventas','pedidos','cotizaciones','visitas','categorias','productos','proveedores'];
+  var tables = ['ventas','pedidos','cotizaciones','visitas','categorias','productos','proveedores','gastos'];
   var loaded = 0;
   var ok = 0;
 
@@ -1872,6 +1923,12 @@ function loadFromSheets(onDone){
         } else if(table === 'productos'){
           productos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, costo:+o.costo||0, margen:+o.margen||0, stock:+o.stock||0}); });
           localStorage.setItem('bm_prod', JSON.stringify(productos));
+
+        } else if(table === 'gastos'){
+          if(arr.length > 0){
+            gastos = arr.map(function(o){ return Object.assign(o,{id:+o.id||o.id, monto:+o.monto||0}); });
+            localStorage.setItem('bm_gast', JSON.stringify(gastos));
+          }
 
         } else if(table === 'proveedores'){
           var valid = arr.every(function(p){ return p.nombre && p.nombre !== 'undefined'; });
@@ -1998,6 +2055,7 @@ var pages = {
   categorias:   {t:'Categorías',            s:'Segmentá y organizá tus productos', a:''},
   proveedores:  {t:'Proveedores',           s:'Contactos y condiciones',          a:'<button class="btn btn-g" onclick="openM(\'prov\')">+ Nuevo proveedor</button>'},
   reportes:     {t:'Reportes',              s:'Análisis de tu negocio',           a:'<button class="btn btn-p" onclick="expTXT()">↓ Reporte TXT</button>'},
+  gastos:       {t:'Gastos',               s:'Registro de egresos',               a:'<button class="btn btn-g" onclick="openNuevoGasto()">+ Nuevo gasto</button>'},
 };
 
 function showTab(t, btn){
@@ -2896,6 +2954,87 @@ function delPed(id){
     }
     save(); render(); snack('Pedido eliminado ✓');
   }
+}
+
+// ── GASTOS ────────────────────────────────────────────────────────────────────
+function openNuevoGasto(){
+  document.getElementById('mtitle').innerHTML = 'Nuevo gasto <button class="xb" onclick="closeM()">×</button>';
+  document.getElementById('mbody').innerHTML =
+    '<div class="fr"><label>Fecha</label><input id="g-fecha" type="date" value="'+hoy()+'"></div>' +
+    '<div class="fr"><label>Categoría</label><select id="g-cat"><option>Sueldo</option><option>Insumos</option><option>Gastos Generales</option></select></div>' +
+    '<div class="fr" style="grid-column:1/-1"><label>Descripción</label><input id="g-desc" type="text" placeholder="Ej: Sueldo semana 1, Pintura látex..."></div>' +
+    '<div class="fr"><label>Monto ($)</label><input id="g-monto" type="number" min="0" value="0"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+      '<button class="btn" onclick="closeM()">Cancelar</button>' +
+      '<button type="button" class="btn btn-g" onclick="saveGasto()">Guardar gasto</button>' +
+    '</div>';
+  document.getElementById('modal').classList.add('open');
+}
+
+function saveGasto(){
+  var fecha = document.getElementById('g-fecha').value || hoy();
+  var cat   = document.getElementById('g-cat').value;
+  var desc  = document.getElementById('g-desc').value.trim();
+  var monto = parseFloat(document.getElementById('g-monto').value) || 0;
+  if(!monto){ snack('El monto no puede ser 0'); return; }
+  gastos.push({ id: Date.now(), fecha: fecha, cat: cat, desc: desc, monto: monto });
+  closeM();
+  localStorage.setItem('bm_gast', JSON.stringify(gastos));
+  if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+    try { fbSet('gastos', arrToObj(gastos)); } catch(e){}
+  }
+  rGastos();
+  snack('✓ Gasto registrado');
+}
+
+function delGasto(id){
+  if(confirm('¿Eliminar este gasto?')){
+    gastos = gastos.filter(function(g){ return g.id !== id; });
+    localStorage.setItem('bm_gast', JSON.stringify(gastos));
+    if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+      try { fbRef('gastos/id_' + id).remove(); } catch(e){}
+    }
+    rGastos();
+    snack('Gasto eliminado ✓');
+  }
+}
+
+function rGastos(){
+  var mf = document.getElementById('fg-mes') ? document.getElementById('fg-mes').value : '';
+  var cf = document.getElementById('fg-cat') ? document.getElementById('fg-cat').value : '';
+  var list = gastos.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
+  if(mf) list = list.filter(function(g){ return g.fecha.slice(0,7) === mf; });
+  if(cf) list = list.filter(function(g){ return g.cat === cf; });
+
+  // Update month filter options
+  var meses = [...new Set(gastos.map(function(g){ return g.fecha.slice(0,7); }))].sort().reverse();
+  var mSel = document.getElementById('fg-mes');
+  if(mSel){
+    var cur = mSel.value;
+    mSel.innerHTML = '<option value="">Todos los meses</option>' +
+      meses.map(function(m){ return '<option value="'+m+'"'+(m===cur?' selected':'')+'>'+m+'</option>'; }).join('');
+  }
+
+  // Totals by category
+  var totSueldo  = gastos.filter(function(g){ return g.cat==='Sueldo'; }).reduce(function(s,g){ return s+g.monto; },0);
+  var totInsumos = gastos.filter(function(g){ return g.cat==='Insumos'; }).reduce(function(s,g){ return s+g.monto; },0);
+  var totGeneral = gastos.filter(function(g){ return g.cat==='Gastos Generales'; }).reduce(function(s,g){ return s+g.monto; },0);
+  var el1 = document.getElementById('gres-sueldo');   if(el1) el1.textContent = $p(totSueldo);
+  var el2 = document.getElementById('gres-insumos');  if(el2) el2.textContent = $p(totInsumos);
+  var el3 = document.getElementById('gres-general');  if(el3) el3.textContent = $p(totGeneral);
+
+  // Render table
+  var tbody = document.getElementById('gastos-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = list.length ? list.map(function(g){
+    return '<tr style="border-top:1px solid var(--bord)">' +
+      '<td style="padding:10px 14px;font-size:12px;color:var(--ink3)">' + fmtFecha(g.fecha) + '</td>' +
+      '<td style="padding:10px 14px;font-size:13px">' + (g.desc||'—') + '</td>' +
+      '<td style="padding:10px 14px"><span class="badge" style="background:var(--paper2);color:var(--ink2)">' + g.cat + '</span></td>' +
+      '<td style="padding:10px 14px;text-align:right;font-weight:600;color:var(--red-t)">' + $p(g.monto) + '</td>' +
+      '<td style="padding:10px 14px;text-align:center"><button class="btn btn-sm btn-d" onclick="delGasto('+g.id+')">×</button></td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="5"><div class="empty"><div class="ei">💸</div><div class="et">No hay gastos registrados.</div></div></td></tr>';
 }
 
 // ── PUNTO DE VENTA ────────────────────────────────────────────────────────────
