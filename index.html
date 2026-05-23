@@ -2547,16 +2547,9 @@ function savePedido(){
     estado: sena >= tot ? 'Parcialmente pagado' : 'Pendiente',
     items: []
   });
-  if(sena > 0){
-    ventas.push({
-      id: Date.now()+1, fecha: hoy(), pid: 0,
-      nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
-      cant: 1, cu: 0, pu: sena, estado: 'Ganada',
-      notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
-    });
-  }
+  // La seña NO genera venta — la venta se registra cuando se salda el pedido completo
   save(); render(); closeM();
-  snack('✓ Pedido de ' + cli.trim() + ' guardado');
+  snack('✓ Pedido de ' + cli.trim() + ' guardado · Seña: ' + $p(sena));
 }
 
 var _lastEditedField = ''; // track which field was last manually edited
@@ -3189,7 +3182,18 @@ function savePedEdit(pedId){
   p.estado  = document.getElementById('ped-est').value;
   p.entrega = document.getElementById('ped-ent').value||'';
   p.notas   = document.getElementById('ped-notas').value||'';
-  closeM(); save(); render(); snack('Pedido actualizado ✓');
+  closeM();
+  // Save with explicit Firebase confirmation
+  localStorage.setItem('bm_ped', JSON.stringify(pedidos));
+  if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+    try {
+      fbSet('pedidos', arrToObj(pedidos), function(err){
+        if(!err) snack('✓ Pedido guardado en la nube');
+        else snack('⚠️ Error al guardar — reintentando...');
+      });
+    } catch(e){ console.warn('Firebase save error:', e); }
+  }
+  save(); render(); snack('Pedido actualizado ✓');
 }
 
 function savePago(pedId){
