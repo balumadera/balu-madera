@@ -1784,7 +1784,10 @@ function saveProductosProveedores(){
   localStorage.setItem('bm_prov', JSON.stringify(proveedores));
   try {
     if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
-      fbSet('productos',   arrToObj(productos));
+      fbSet('productos', arrToObj(productos), function(err){
+        if(!err) snack('✓ Productos guardados en la nube');
+        else { snack('⚠️ Error — reintentando...'); setTimeout(function(){ fbSet('productos', arrToObj(productos)); }, 2000); }
+      });
       fbSet('proveedores', arrToObj(proveedores));
     }
   } catch(e){ console.warn('Firebase save error:', e); }
@@ -2669,7 +2672,22 @@ function saveProd(){
     productos.push(obj);
     snack('Producto guardado ✓');
   }
-  _lastEditedField = ''; closeM(); saveProductosProveedores(); render(); rProd();
+  _lastEditedField = '';
+  // Guardar en localStorage inmediatamente
+  localStorage.setItem('bm_prod', JSON.stringify(productos));
+  localStorage.setItem('bm_prov', JSON.stringify(proveedores));
+  closeM(); render(); rProd();
+  // Guardar en Firebase con confirmación
+  snack('⏳ Guardando producto...');
+  if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
+    fbSet('productos', arrToObj(productos), function(err){
+      if(!err) snack('✓ Producto guardado correctamente');
+      else {
+        snack('⚠️ Error al guardar — reintentando...');
+        setTimeout(function(){ fbSet('productos', arrToObj(productos)); }, 2000);
+      }
+    });
+  }
 }
 
 function saveVenta(){
