@@ -2329,7 +2329,10 @@ function rVis(){
     return '<tr><td style="font-size:12px;color:var(--ink3)">' + fmtFecha(v.fecha) + '</td>' +
       '<td>' + visB(v.tipo) + '</td>' +
       '<td style="font-size:13px;color:var(--ink3)">' + (v.det||'—') + '</td>' +
-      '<td><button class="btn btn-sm btn-d" onclick="delVis(' + v.id + ')">×</button></td></tr>';
+      '<td><div style="display:flex;gap:5px">' +
+        '<button class="btn btn-sm" onclick="openEditVis(' + v.id + ')">✏️</button>' +
+        '<button class="btn btn-sm btn-d" onclick="delVis(' + v.id + ')">×</button>' +
+      '</div></td></tr>';
   }).join('') : empty('👥','Sin visitas registradas aún');
 }
 
@@ -2818,6 +2821,36 @@ function delVenta(id){ if(confirm('¿Eliminar?')){ ventas=ventas.filter(function
 function delCot(id){ if(confirm('¿Eliminar?')){ cotizaciones=cotizaciones.filter(function(c){ return c.id!==id; }); save(); render(); snack('Cotización eliminada ✓'); } }
 function delVis(id){ if(confirm('¿Eliminar?')){ visitas=visitas.filter(function(v){ return v.id!==id; }); save(); saveProductosProveedores(); rVis(); snack('Eliminado'); } }
 function delProv(id){ if(confirm('¿Eliminar?')){ proveedores=proveedores.filter(function(p){ return p.id!==id; }); save(); saveProductosProveedores(); render(); snack('Eliminado'); } }
+
+function openEditVis(id){
+  var v = visitas.find(function(x){ return x.id===id; }); if(!v) return;
+  document.getElementById('mtitle').innerHTML = 'Editar visita <button class="xb" onclick="closeM()">×</button>';
+  document.getElementById('mbody').innerHTML =
+    '<div class="fg">' +
+      '<div class="fr"><label>Fecha</label><input id="ev-fecha" type="date" value="' + (v.fecha||'') + '"></div>' +
+      '<div class="fr"><label>Tipo de visita</label>' +
+        '<select id="ev-tipo">' +
+          '<option value="Comprador"'   + (v.tipo==='Comprador'      ?' selected':'') + '>🛒 Compró</option>' +
+          '<option value="Busca producto"'+(v.tipo==='Busca producto'?' selected':'') + '>🔍 Busca producto específico</option>' +
+          '<option value="Curioso"'     + (v.tipo==='Curioso'        ?' selected':'') + '>👀 Solo miraba</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="fr" style="grid-column:1/-1"><label>Detalle</label><input id="ev-det" type="text" value="' + (v.det||'') + '" placeholder="Ej: buscaba mesa de luz, compró repisa..."></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+      '<button class="btn" onclick="closeM()">Cancelar</button>' +
+      '<button class="btn btn-g" type="button" onclick="saveEditVis(' + id + ')">Guardar cambios</button>' +
+    '</div>';
+  document.getElementById('modal').classList.add('open');
+}
+
+function saveEditVis(id){
+  var v = visitas.find(function(x){ return x.id===id; }); if(!v) return;
+  v.fecha = document.getElementById('ev-fecha').value || v.fecha;
+  v.tipo  = document.getElementById('ev-tipo').value;
+  v.det   = document.getElementById('ev-det').value || '';
+  closeM(); save(); rVis(); snack('Visita actualizada ✓');
+}
 
 // ── EXPORTS ───────────────────────────────────────────────────────────────────
 function expCSV(){
