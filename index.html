@@ -169,7 +169,7 @@ textarea{resize:vertical;min-height:68px}
 .pos-wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;height:calc(100vh - 118px)}
 .pos-left{display:flex;flex-direction:column;gap:12px;overflow:hidden}
 .pos-sw{position:relative}
-.pos-si{width:100%;font-size:15px;padding:12px 16px 12px 42px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
+.pos-si{width:100%;font-size:15px;padding:12px 16px 12px 40px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
 .pos-si:focus{border-color:var(--gold)}
 .pos-sic{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
 .pos-dd{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--surf);border:1px solid var(--bord2);border-radius:var(--radl);box-shadow:var(--shl);z-index:50;max-height:260px;overflow-y:auto;display:none}
@@ -318,6 +318,13 @@ textarea{resize:vertical;min-height:68px}
               <div class="pos-totrow" style="color:var(--green-t)"><span>Ganancia est.</span><span id="pos-gan">$0</span></div>
               <div class="pos-totmain"><span>TOTAL</span><input id="pos-tot" type="number" min="0" value="0" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--wood);width:140px;text-align:right;border:none;border-bottom:2px solid var(--wood);background:transparent;padding:0 2px" title="Tocá para editar el total final" onchange="updateTotalManual()"></div>
             </div>
+            <div style="margin-bottom:8px">
+              <select id="pos-canal" style="width:100%;font-size:12px;padding:7px 10px;border:1px solid var(--bord2);border-radius:var(--rad);background:var(--surf);font-family:'DM Sans',sans-serif;color:var(--ink2)">
+                <option value="Local">🏠 Local</option>
+                <option value="WhatsApp">💬 WhatsApp</option>
+                <option value="Instagram/Facebook">📱 Instagram/Facebook</option>
+              </select>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
               <button class="pos-pbtn ef" id="pb-ef" onclick="cobrar('Efectivo')" disabled>💵 Efectivo</button>
               <button class="pos-pbtn tr" id="pb-tr" onclick="cobrar('Transferencia')" disabled>📲 Transferencia</button>
@@ -409,6 +416,7 @@ textarea{resize:vertical;min-height:68px}
         <select id="fvc" onchange="rVentas()"><option value="">Todas las categorías</option></select>
         <select id="fve" onchange="rVentas()"><option value="">Todos los estados</option><option>Ganada</option><option>Pendiente</option><option>Cancelada</option></select>
         <select id="fvmet" onchange="ventPage=1;rVentas()"><option value="">Todos los métodos</option><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option><option>MercadoPago</option></select>
+        <select id="fvcanal" onchange="ventPage=1;rVentas()"><option value="">Todos los canales</option><option>Local</option><option>WhatsApp</option><option>Instagram/Facebook</option></select>
       </div>
       <div class="card">
         <table><thead><tr><th>Fecha</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>P.Unit.</th><th>Total</th><th>Ganancia</th><th>Estado</th><th></th></tr></thead>
@@ -2223,6 +2231,8 @@ function rVentas(){
   if(cf) list = list.filter(function(v){ return v.cat===cf; });
   if(ef) list = list.filter(function(v){ return v.estado===ef; });
   if(mef) list = list.filter(function(v){ return v.metodo===mef || (v.notas&&v.notas.indexOf(mef)>=0); });
+  var cf2 = document.getElementById('fvcanal') ? document.getElementById('fvcanal').value : '';
+  if(cf2) list = list.filter(function(v){ return v.canal===cf2; });
   document.getElementById('vent-tbody').innerHTML = list.length ? list.map(function(v){
     var t=v.pu*v.cant, g=v.cu>0?(v.pu-v.cu)*v.cant:null;
     return '<tr><td style="font-size:12px;color:var(--ink3)">' + fmtFecha(v.fecha) + '</td>' +
@@ -3038,11 +3048,13 @@ function initPOS(){
 function renderPOSGrid(q){
   var el = document.getElementById('pos-grid'); if(!el) return;
   var list = productos.filter(function(p){
-    if(!p.costo) return false;
     if(!q) return true;
     var ql = q.toLowerCase();
     return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
-  }).slice(0,30);
+  });
+  // Only limit to 30 when no search query (grid view)
+  // When searching, show ALL matches so no product is hidden
+  if(!q) list = list.slice(0,30);
   if(!list.length){
     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--ink4);font-size:13px">Sin resultados para "' + q + '"</div>';
     return;
@@ -3051,7 +3063,7 @@ function renderPOSGrid(q){
     return '<div class="pos-pc" onclick="addToCart(' + p.id + ')">' +
       '<div class="pos-pn">' + p.nombre + '</div>' +
       '<div class="pos-pc2">' + p.cod + '</div>' +
-      '<div class="pos-pp">' + $p(pventa(p)) + '</div>' +
+      '<div class="pos-pp">' + (pventa(p) > 0 ? $p(pventa(p)) : '<span style="color:var(--ink4);font-size:12px">Sin precio</span>') + '</div>' +
       '<div style="margin-top:5px">' + catB(p.cat) + '</div>' +
     '</div>';
   }).join('');
@@ -3064,7 +3076,7 @@ function posSearch(){
   if(!q){ dd.classList.remove('open'); return; }
   var ql = q.toLowerCase();
   var hits = productos.filter(function(p){
-    return p.costo>0 && (p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql));
+    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
   }).slice(0,8);
   if(!hits.length){ dd.classList.remove('open'); return; }
   dd.innerHTML = hits.map(function(p){
@@ -3093,7 +3105,7 @@ document.addEventListener('click', function(e){
 
 function addToCart(pid){
   var p = productos.find(function(x){ return x.id===pid; });
-  if(!p || !p.costo) return;
+  if(!p) return;
   var ex = cart.find(function(i){ return i.pid===pid; });
   if(ex){ ex.qty++; }
   else { cart.push({pid:pid, nombre:p.nombre, cat:p.cat, cod:p.cod, cu:p.costo, pu:Math.round(pventa(p)), qty:1}); }
@@ -3211,6 +3223,7 @@ function cobrar(metodo){
       fecha: fecha, pid: item.pid, nombre: item.nombre, cat: item.cat,
       cant: item.qty, cu: item.cu, pu: item.pu, estado: 'Ganada',
       metodo: metodo,
+      canal: (document.getElementById('pos-canal') ? document.getElementById('pos-canal').value : 'Local'),
       notas: (cli?'Cliente: '+cli+' · ':'') + 'Cobrado: ' + metodo
     });
   });
