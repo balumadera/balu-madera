@@ -2116,7 +2116,7 @@ function rDash(){
   var ult = ventas.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); }).slice(0,5);
   document.getElementById('dash-ventas').innerHTML = ult.length ? ult.map(function(v){
     var g = (v.pu-v.cu)*v.cant;
-    return '<tr><td><span class="lnk" onclick="openDP(' + v.pid + ')">' + v.nombre + '</span><br><span style="font-size:11px;color:var(--ink4)">' + fmtFecha(v.fecha) + ' · ×' + v.cant + '</span></td><td style="font-weight:600">' + $p(v.pu*v.cant) + '</td><td style="color:var(--green);font-weight:600">' + (v.cu>0 ? $p(g) : '—') + '</td></tr>';
+    return '<tr><td><span class="lnk" onclick="openDP(' + v.pid + ')">' + v.nombre + '</span><br><span style="font-size:11px;color:var(--ink4)">' + fmtFecha(v.fecha) + ' · ×' + v.cant + '</span></td><td style="font-weight:600">' + $p(v.pu*v.cant) + '</td><td style="color:var(--green);font-weight:600">' + $p(g) + '</td></tr>';
   }).join('') : empty('📋','Sin ventas aún');
 
   var rent = productos.filter(function(p){ return p.costo>0; }).slice().sort(function(a,b){ return b.margen-a.margen; }).slice(0,5);
@@ -2281,7 +2281,7 @@ function rVentas(){
   var cf2 = document.getElementById('fvcanal') ? document.getElementById('fvcanal').value : '';
   if(cf2) list = list.filter(function(v){ return v.canal===cf2; });
   document.getElementById('vent-tbody').innerHTML = list.length ? list.map(function(v){
-    var t=v.pu*v.cant, g=v.cu>0?(v.pu-v.cu)*v.cant:null;
+    var t=v.pu*v.cant, g=(v.pu-v.cu)*v.cant;
     return '<tr><td style="font-size:12px;color:var(--ink3)">' + fmtFecha(v.fecha) + '</td>' +
       '<td style="font-weight:500">' + v.nombre + '</td>' +
       '<td>' + catB(v.cat) + '</td>' +
