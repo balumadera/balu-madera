@@ -3594,6 +3594,8 @@ function saveProdRapido(addToCarrito){
   if(!n){ snack('El nombre es obligatorio'); return; }
   var costo  = parseFloat(document.getElementById('qp-costo').value)||0;
   var margen = parseFloat(document.getElementById('qp-margen').value)||80;
+  var pventaManual = parseFloat(document.getElementById('qp-pventa').value)||0;
+  if(costo===0 && pventaManual===0){ snack('Sin costo: ingresá al menos el precio de venta'); return; }
   var newProd = {
     id:     Date.now(),
     cod:    document.getElementById('qp-cod').value.trim() || ('BM-' + String(Date.now()).slice(-4)),
@@ -3611,6 +3613,8 @@ function saveProdRapido(addToCarrito){
   if(addToCarrito){
     // Si tiene pventa_manual o costo, agregar normalmente; si no, agregar con precio 0
     var puInicial = newProd.pventa_manual > 0 ? newProd.pventa_manual : (costo > 0 ? Math.round(costo * (1 + margen/100)) : 0);
+  // Garantizar que siempre haya precio si se ingresó pventa_manual
+  if(puInicial === 0 && pventaManual > 0) puInicial = pventaManual;
     var ex = cart.find(function(i){ return i.pid===newProd.id; });
     if(!ex) cart.push({pid:newProd.id, nombre:newProd.nombre, cat:newProd.cat, cod:newProd.cod, cu:costo, pu:puInicial, qty:1});
     renderCart();
