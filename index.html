@@ -3551,20 +3551,24 @@ function saveProdRapido(addToCarrito){
   productos.push(newProd);
   save();
   closeM();
-  if(addToCarrito && costo>0){
-    addToCart(newProd.id);
-    snack('✓ ' + n + ' guardado y agregado al carrito');
-  } else if(addToCarrito && costo===0){
-    // sin costo: agregar igual con precio 0 avisando
+  if(addToCarrito){
+    // Si tiene pventa_manual o costo, agregar normalmente; si no, agregar con precio 0
+    var puInicial = newProd.pventa_manual > 0 ? newProd.pventa_manual : (costo > 0 ? Math.round(costo * (1 + margen/100)) : 0);
     var ex = cart.find(function(i){ return i.pid===newProd.id; });
-    if(!ex) cart.push({pid:newProd.id, nombre:newProd.nombre, cat:newProd.cat, cod:newProd.cod, cu:0, pu:0, qty:1});
+    if(!ex) cart.push({pid:newProd.id, nombre:newProd.nombre, cat:newProd.cat, cod:newProd.cod, cu:costo, pu:puInicial, qty:1});
     renderCart();
     renderPOSGrid('');
-    snack('✓ ' + n + ' agregado — editá el precio en el carrito');
+    if(puInicial === 0){
+      snack('✓ ' + n + ' agregado — editá el precio en el carrito');
+    } else {
+      snack('✓ ' + n + ' guardado y agregado al carrito');
+    }
+    if(false){
   } else {
     renderPOSGrid('');
     render();
     snack('✓ ' + n + ' guardado en el catálogo');
+    }
   }
 }
 
