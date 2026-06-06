@@ -169,7 +169,7 @@ textarea{resize:vertical;min-height:68px}
 .pos-wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;height:calc(100vh - 118px)}
 .pos-left{display:flex;flex-direction:column;gap:12px;overflow:hidden}
 .pos-sw{position:relative}
-.pos-si{width:100%;font-size:15px;padding:12px 16px 12px 40px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
+.pos-si{width:100%;font-size:15px;padding:12px 16px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
 .pos-si:focus{border-color:var(--gold)}
 .pos-sic{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
 .pos-dd{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--surf);border:1px solid var(--bord2);border-radius:var(--radl);box-shadow:var(--shl);z-index:50;max-height:260px;overflow-y:auto;display:none}
@@ -293,7 +293,6 @@ textarea{resize:vertical;min-height:68px}
         <div class="pos-left">
           <div style="display:flex;gap:8px;align-items:center">
             <div class="pos-sw" style="flex:1">
-              <span class="pos-sic">🔍</span>
               <input class="pos-si" id="pos-s" type="text" placeholder="Buscá por nombre o código..." oninput="posSearch()" onkeydown="posKey(event)" autocomplete="off">
               <div class="pos-dd" id="pos-dd"></div>
             </div>
