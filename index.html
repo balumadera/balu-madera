@@ -169,7 +169,7 @@ textarea{resize:vertical;min-height:68px}
 .pos-wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;height:calc(100vh - 118px)}
 .pos-left{display:flex;flex-direction:column;gap:12px;overflow:hidden}
 .pos-sw{position:relative}
-.pos-si{width:100%;font-size:15px;padding:12px 16px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
+.pos-si{width:100%;font-size:15px;padding:12px 16px 12px 40px;border:2px solid var(--bord2);border-radius:var(--radl);font-family:'DM Sans',sans-serif;background:var(--surf);color:var(--ink);outline:none;transition:border .15s}
 .pos-si:focus{border-color:var(--gold)}
 .pos-sic{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
 .pos-dd{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--surf);border:1px solid var(--bord2);border-radius:var(--radl);box-shadow:var(--shl);z-index:50;max-height:260px;overflow-y:auto;display:none}
@@ -285,6 +285,10 @@ textarea{resize:vertical;min-height:68px}
         <div class="ch"><div class="cht">Ganancia por categoría</div></div>
         <div style="padding:14px 18px" id="dash-cats"></div>
       </div>
+      <div class="card">
+        <div class="ch"><div><div class="cht">Ventas por canal</div><div class="chs">Sobre el total de ventas registradas</div></div></div>
+        <div style="padding:14px 18px" id="dash-canales"></div>
+      </div>
     </div>
 
     <!-- PUNTO DE VENTA -->
@@ -293,6 +297,7 @@ textarea{resize:vertical;min-height:68px}
         <div class="pos-left">
           <div style="display:flex;gap:8px;align-items:center">
             <div class="pos-sw" style="flex:1">
+              <span class="pos-sic">🔍</span>
               <input class="pos-si" id="pos-s" type="text" placeholder="Buscá por nombre o código..." oninput="posSearch()" onkeydown="posKey(event)" autocomplete="off">
               <div class="pos-dd" id="pos-dd"></div>
             </div>
@@ -2135,6 +2140,50 @@ function rDash(){
     .slice(0, 10); // top 10 categorías
   var barColors = ['var(--blue)','#7C3AED','var(--amber)','var(--green)','var(--wood)','#E11D48','#0891B2','#D97706','#059669','#7C3AED'];
   var mg = Math.max.apply(null, cd.map(function(d){ return d.g; }).concat([1]));
+
+  // ── CANAL DE VENTA ──
+  var totalVentas = ventas.length;
+  var dashCanal = document.getElementById('dash-canales');
+  if(dashCanal){
+    if(totalVentas > 0){
+      var canalData = [
+        {canal:'Local', emoji:'🏠'},
+        {canal:'WhatsApp', emoji:'💬'},
+        {canal:'Instagram/Facebook', emoji:'📱'}
+      ];
+      var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">';
+      canalData.forEach(function(cd2){
+        var n = ventas.filter(function(v){ return v.canal===cd2.canal; }).length;
+        var pct = Math.round(n/totalVentas*100);
+        html += '<div style="background:var(--paper2);border-radius:var(--radl);padding:14px 16px;text-align:center">';
+        html += '<div style="font-size:22px;margin-bottom:6px">' + cd2.emoji + '</div>';
+        html += '<div class="kv">' + n + '</div>';
+        html += '<div style="font-size:12px;color:var(--ink3);margin-top:2px;font-weight:500">' + cd2.canal + '</div>';
+        html += '<div style="margin-top:8px;background:var(--paper3);border-radius:4px;height:6px;overflow:hidden">';
+        html += '<div style="height:100%;border-radius:4px;background:var(--gold);width:' + pct + '%"></div></div>';
+        html += '<div style="font-size:11px;color:var(--ink4);margin-top:4px">' + pct + '% del total</div>';
+        html += '</div>';
+      });
+      // Sin canal
+      var sinCanal = ventas.filter(function(v){ return !v.canal; }).length;
+      if(sinCanal > 0){
+        var pctSin = Math.round(sinCanal/totalVentas*100);
+        html += '<div style="background:var(--paper2);border-radius:var(--radl);padding:14px 16px;text-align:center">';
+        html += '<div style="font-size:22px;margin-bottom:6px">❓</div>';
+        html += '<div class="kv">' + sinCanal + '</div>';
+        html += '<div style="font-size:12px;color:var(--ink3);margin-top:2px;font-weight:500">Sin canal</div>';
+        html += '<div style="margin-top:8px;background:var(--paper3);border-radius:4px;height:6px;overflow:hidden">';
+        html += '<div style="height:100%;border-radius:4px;background:var(--ink4);width:' + pctSin + '%"></div></div>';
+        html += '<div style="font-size:11px;color:var(--ink4);margin-top:4px">' + pctSin + '% del total</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      dashCanal.innerHTML = html;
+    } else {
+      dashCanal.innerHTML = '<div class="empty"><div class="ei">📊</div><div class="et">Registrá ventas para ver análisis por canal</div></div>';
+    }
+  }
+
   document.getElementById('dash-cats').innerHTML = cd.length ? cd.map(function(d, i){
     return '<div style="display:flex;align-items:center;gap:13px;margin-bottom:13px">' +
       '<div style="width:130px;font-size:12px;font-weight:500;color:var(--ink2);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+d.cat+'">' + d.cat + '</div>' +
