@@ -2205,7 +2205,8 @@ function rProd(){
   var pf = document.getElementById('fprov') ? document.getElementById('fprov').value : '';
 
   var list = productos.filter(function(p){
-    if(q  && p.nombre.toLowerCase().indexOf(q) === -1 && p.cod.toLowerCase().indexOf(q) === -1) return false;
+    if(!p || !p.nombre) return false;
+    if(q  && (p.nombre||'').toLowerCase().indexOf(q) === -1 && (p.cod||'').toLowerCase().indexOf(q) === -1) return false;
     if(cf && p.cat  !== cf) return false;
     if(pf && p.prov !== pf) return false;
     return true;
@@ -3152,9 +3153,10 @@ function initPOS(){
 function renderPOSGrid(q){
   var el = document.getElementById('pos-grid'); if(!el) return;
   var list = productos.filter(function(p){
+    if(!p || !p.nombre) return false;
     if(!q) return true;
     var ql = q.toLowerCase();
-    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
+    return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
   });
   // Only limit to 30 when no search query (grid view)
   // When searching, show ALL matches so no product is hidden
@@ -3180,7 +3182,8 @@ function posSearch(){
   if(!q){ dd.classList.remove('open'); return; }
   var ql = q.toLowerCase();
   var hits = productos.filter(function(p){
-    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
+    if(!p || !p.nombre) return false;
+    return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
   }).slice(0,8);
   if(!hits.length){ dd.classList.remove('open'); return; }
   dd.innerHTML = hits.map(function(p){
