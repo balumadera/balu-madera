@@ -2668,12 +2668,14 @@ function savePedido(){
     estado: 'Pendiente',
     items: []
   });
-  if(sena > 0){
+  // Registrar como venta en el momento del encargo
+  if(tot > 0){
     ventas.push({
       id: newId(), fecha: hoy(), pid: 0,
-      nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
-      cant: 1, cu: 0, pu: sena, estado: 'Ganada',
-      notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
+      nombre: det || 'Encargo — ' + cli.trim(),
+      cat: 'Pedidos', cant: 1, cu: 0, pu: tot,
+      estado: 'Ganada', metodo: met,
+      notas: 'Pedido de ' + cli.trim() + (tel ? ' · ' + tel : '')
     });
   }
   save(); render(); closeM();
@@ -3485,34 +3487,9 @@ function savePago(pedId){
   var saldoRestante = p.total - p.sena;
   // Registrar el pago como venta
   if(saldoRestante <= 0){
-    // Pedido completamente saldado — registrar venta completa con todos los ítems
-    var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0;
-    var items = p.items && p.items.length ? p.items : [{nombre: p.detalle, qty:1, pu:p.total, cu:costoManual, cat:'Pedidos'}];
-    // If items exist but have no cost, distribute costoManual proportionally
-    if(costoManual > 0 && items.every(function(i){ return !i.cu; })){
-      var totalPu = items.reduce(function(s,i){ return s + (i.pu * (i.qty||1)); }, 0);
-      items = items.map(function(i){
-        var proporcion = totalPu > 0 ? (i.pu * (i.qty||1)) / totalPu : 1/items.length;
-        return Object.assign({}, i, {cu: Math.round(costoManual * proporcion / (i.qty||1))});
-      });
-    }
-    items.forEach(function(item){
-      ventas.push({
-        id: newId(),
-        fecha: hoy(),
-        pid: item.pid || 0,
-        nombre: item.nombre,
-        cat: item.cat || 'Pedidos',
-        cant: item.qty || 1,
-        cu: item.cu || 0,
-        pu: item.pu,
-        estado: 'Ganada',
-        metodo: met,
-        notas: 'Pago final en ' + met + ' · Encargo de ' + p.cliente
-      });
-    });
+    // Venta ya fue registrada al crear el pedido — solo marcar como Entregado
     p.estado = 'Entregado';
-    snack('✓ Pedido de ' + p.cliente + ' saldado y registrado como venta ✓');
+    snack('✓ Pedido de ' + p.cliente + ' marcado como entregado ✓');
   } else {
     // Pago parcial — solo registrar el pago
     ventas.push({
