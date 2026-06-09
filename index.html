@@ -2665,7 +2665,7 @@ function savePedido(){
     metSena: met,
     entrega: ent,
     notas: notas,
-    estado: sena >= tot ? 'Parcialmente pagado' : 'Pendiente',
+    estado: 'Pendiente',
     items: []
   });
   if(sena > 0){
@@ -3411,7 +3411,7 @@ function saveSena(){
     fecha: fechaVenta, cliente: cli, tel: telSena, detalle: det,
     total: tot, sena: sena, metSena: met,
     entrega: ent, notas: notas,
-    estado: (tot-sena)<=0 ? 'Pagado' : 'Pendiente',
+    estado: 'Pendiente',
     items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; })
   });
   save(); render(); closeM();
