@@ -2668,14 +2668,14 @@ function savePedido(){
     estado: 'Pendiente',
     items: []
   });
-  // Registrar como venta en el momento del encargo
-  if(tot > 0){
+  // Registrar seña como pago en ventas
+  if(sena > 0){
     ventas.push({
       id: newId(), fecha: hoy(), pid: 0,
-      nombre: det || 'Encargo — ' + cli.trim(),
-      cat: 'Pedidos', cant: 1, cu: 0, pu: tot,
+      nombre: 'SEÑA — ' + (det || cli.trim()),
+      cat: 'Pedidos', cant: 1, cu: 0, pu: sena,
       estado: 'Ganada', metodo: met,
-      notas: 'Pedido de ' + cli.trim() + (tel ? ' · ' + tel : '')
+      notas: 'Seña de ' + cli.trim() + (tel ? ' · ' + tel : '') + ' · Total encargo: $' + Math.round(tot).toLocaleString('es-AR')
     });
   }
   save(); render(); closeM();
@@ -3489,16 +3489,25 @@ function savePago(pedId){
   var saldoRestante = p.total - p.sena;
   // Registrar el pago como venta
   if(saldoRestante <= 0){
-    // Venta ya fue registrada al crear el pedido — solo marcar como Entregado
-    p.estado = 'Entregado';
-    snack('✓ Pedido de ' + p.cliente + ' marcado como entregado ✓');
-  } else {
-    // Pago parcial — solo registrar el pago
+    // Registrar venta completa al entregar
+    var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0;
     ventas.push({
       id: newId(), fecha: hoy(), pid: 0,
-      nombre: 'PAGO PARCIAL — ' + p.cliente,
+      nombre: p.detalle || 'Encargo — ' + p.cliente,
+      cat: 'Pedidos', cant: 1, cu: costoManual, pu: p.total,
+      estado: 'Ganada', metodo: met,
+      notas: 'Entrega completa · ' + p.cliente + (p.tel ? ' · ' + p.tel : '')
+    });
+    p.estado = 'Entregado';
+    snack('✓ Pedido de ' + p.cliente + ' entregado y registrado como venta ✓');
+  } else {
+    // Pago parcial — registrar el pago
+    ventas.push({
+      id: newId(), fecha: hoy(), pid: 0,
+      nombre: 'PAGO PARCIAL — ' + (p.detalle || p.cliente),
       cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
-      notas: 'Pago en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+      metodo: met,
+      notas: 'Pago parcial · ' + p.cliente + ' · Saldo restante: ' + $p(saldoRestante)
     });
     snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
   }
