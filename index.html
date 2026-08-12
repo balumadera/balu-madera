@@ -157,6 +157,7 @@ textarea{resize:vertical;min-height:68px}
 /* MISC */
 .pbar{height:4px;border-radius:2px;background:var(--paper3);overflow:hidden;margin-top:5px}
 .pbf{height:100%;border-radius:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 .snack{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:var(--shl)}
 .snack.show{opacity:1}
 .empty{text-align:center;padding:34px 20px;color:var(--ink4)}
@@ -253,6 +254,10 @@ textarea{resize:vertical;min-height:68px}
   <div class="sb-foot">
     <div style="color:rgba(250,247,242,.6);font-weight:500">Balu Madera © 2026</div>
     <div style="font-size:11px;color:rgba(250,247,242,.4);margin-top:3px" id="sbdate"></div>
+    <div id="fb-status" style="margin-top:8px;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(42,107,74,.3);color:#86efac;display:flex;align-items:center;gap:5px">
+      <span id="fb-dot" style="width:7px;height:7px;border-radius:50%;background:#86efac;flex-shrink:0;display:inline-block"></span>
+      <span id="fb-msg">Firebase OK</span>
+    </div>
   </div>
 </aside>
 
@@ -1783,8 +1788,26 @@ function fbRef(path){
 }
 
 // SAVE — guarda un objeto completo en Firebase
+function setFbStatus(ok){
+  var dot = document.getElementById('fb-dot');
+  var msg = document.getElementById('fb-msg');
+  var box = document.getElementById('fb-status');
+  if(!dot||!msg||!box) return;
+  if(ok){
+    box.style.background='rgba(42,107,74,.3)'; box.style.color='#86efac';
+    dot.style.background='#86efac'; dot.style.animation='';
+    msg.textContent='✓ Guardado en Firebase';
+  } else {
+    box.style.background='rgba(192,57,43,.5)'; box.style.color='#fca5a5';
+    dot.style.background='#fca5a5'; dot.style.animation='blink 1s infinite';
+    msg.textContent='⚠️ ERROR — datos NO guardados';
+  }
+}
+
 function fbSet(path, data, cb){
   fbRef(path).set(data, function(err){
+    if(err){ setFbStatus(false); }
+    else { setFbStatus(true); }
     if(cb) cb(err);
   });
 }
@@ -1830,7 +1853,7 @@ function save(){
     fbSet('cotizaciones', arrToObj(cotizaciones));
     fbSet('visitas',      arrToObj(visitas));
     fbSet('categorias',   arrToObj(categorias));
-  } catch(e){ console.warn('Firebase save error:', e); }
+  } catch(e){ console.warn('Firebase save error:', e); setFbStatus(false); }
 }
 
 function saveProductosProveedores(){
@@ -1976,12 +1999,6 @@ function snack(msg){
   var s = document.getElementById('snack');
   s.textContent = msg; s.classList.add('show');
   setTimeout(function(){ s.classList.remove('show'); }, 2400);
-}
-// Genera un ID entero único y seguro para Firebase (sin puntos ni caracteres especiales)
-var _idCounter = 0;
-function newId(){
-  _idCounter++;
-  return Math.floor(Date.now()) * 1000 + (_idCounter % 1000);
 }
 function catB(c){
   var cat = categorias.find(function(x){ return x.nombre===c; });
@@ -2211,8 +2228,7 @@ function rProd(){
   var pf = document.getElementById('fprov') ? document.getElementById('fprov').value : '';
 
   var list = productos.filter(function(p){
-    if(!p || !p.nombre) return false;
-    if(q  && (p.nombre||'').toLowerCase().indexOf(q) === -1 && (p.cod||'').toLowerCase().indexOf(q) === -1) return false;
+    if(q  && p.nombre.toLowerCase().indexOf(q) === -1 && p.cod.toLowerCase().indexOf(q) === -1) return false;
     if(cf && p.cat  !== cf) return false;
     if(pf && p.prov !== pf) return false;
     return true;
@@ -2655,7 +2671,7 @@ function savePedido(){
   var det  = (document.getElementById('ped-det')||{}).value||'';
   var tel = (document.getElementById('ped-tel')||{}).value||'';
   pedidos.push({
-    id: newId(),
+    id: Date.now(),
     fecha: hoy(),
     cliente: cli.trim(),
     tel: tel,
@@ -2665,17 +2681,15 @@ function savePedido(){
     metSena: met,
     entrega: ent,
     notas: notas,
-    estado: 'Pendiente',
+    estado: sena >= tot ? 'Parcialmente pagado' : 'Pendiente',
     items: []
   });
-  // Registrar seña como pago en ventas
   if(sena > 0){
     ventas.push({
-      id: newId(), fecha: hoy(), pid: 0,
-      nombre: 'SEÑA — ' + (det || cli.trim()),
-      cat: 'Pedidos', cant: 1, cu: 0, pu: sena,
-      estado: 'Ganada', metodo: met,
-      notas: 'Seña de ' + cli.trim() + (tel ? ' · ' + tel : '') + ' · Total encargo: $' + Math.round(tot).toLocaleString('es-AR')
+      id: Date.now()+1, fecha: hoy(), pid: 0,
+      nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
+      cant: 1, cu: 0, pu: sena, estado: 'Ganada',
+      notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
     });
   }
   save(); render(); closeM();
@@ -2771,7 +2785,7 @@ function saveProd(){
         if(!nc){ snack('Escribí el nombre de la nueva categoría'); return null; }
         // Agregar categoría si no existe
         if(!categorias.find(function(c){ return c.nombre===nc; })){
-          categorias.push({id: newId(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
+          categorias.push({id: Date.now(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
           // Guardar categoria nueva en Firebase
           localStorage.setItem('bm_cats', JSON.stringify(categorias));
           if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
@@ -2795,7 +2809,7 @@ function saveProd(){
     productos[i] = Object.assign(productos[i], obj);
     snack('Producto actualizado ✓');
   } else {
-    obj.id = newId();
+    obj.id = Date.now();
     productos.push(obj);
     snack('Producto guardado ✓');
   }
@@ -2809,7 +2823,7 @@ function saveVenta(){
   var pu = parseFloat(document.getElementById('v-pu').value)||0;
   if(!pu){ snack('El precio no puede ser 0'); return; }
   ventas.push({
-    id: newId(),
+    id: Date.now(),
     fecha: document.getElementById('v-fecha').value||hoy(),
     pid: prod.id, nombre: prod.nombre, cat: prod.cat,
     cant: parseInt(document.getElementById('v-cant').value)||1,
@@ -2839,7 +2853,7 @@ function saveCot(){
     cotizaciones[i] = Object.assign(cotizaciones[i], obj);
     snack('Cotización actualizada ✓');
   } else {
-    obj.id = newId();
+    obj.id = Date.now();
     cotizaciones.push(obj);
     snack('Cotización guardada ✓');
   }
@@ -2850,7 +2864,7 @@ function saveVisita(){
   var fecha = document.getElementById('vfecha').value||hoy();
   var tipo  = document.getElementById('vtipo').value;
   var det   = document.getElementById('vdet').value||'';
-  visitas.push({id: newId(), fecha: fecha, tipo: tipo, det: det});
+  visitas.push({id: Date.now(), fecha: fecha, tipo: tipo, det: det});
   document.getElementById('vdet').value = '';
   save(); rVis(); snack('Visita registrada ✓');
 }
@@ -2872,7 +2886,7 @@ function saveProv(){
     proveedores[i] = Object.assign(proveedores[i], obj);
     snack('Proveedor actualizado ✓');
   } else {
-    obj.id = newId();
+    obj.id = Date.now();
     proveedores.push(obj);
     snack('Proveedor guardado ✓');
   }
@@ -2895,7 +2909,6 @@ function openEditVenta(id){
   document.getElementById('mtitle').innerHTML = 'Editar venta <button class="xb" onclick="closeM()">×</button>';
   document.getElementById('mbody').innerHTML =
     '<div class="fg">' +
-      '<div class="fr" style="grid-column:1/-1"><label>Nombre / Producto</label><input id="ev-vnombre" type="text" value="' + (v.nombre||'') + '"></div>' +
       '<div class="fr"><label>Fecha</label><input id="ev-vfecha" type="date" value="' + (v.fecha||'') + '"></div>' +
       '<div class="fr"><label>Canal de venta</label>' +
         '<select id="ev-vcanal">' +
@@ -2932,7 +2945,6 @@ function openEditVenta(id){
 
 function saveEditVenta(id){
   var v = ventas.find(function(x){ return x.id===id; }); if(!v) return;
-  v.nombre = document.getElementById('ev-vnombre').value || v.nombre;
   v.fecha  = document.getElementById('ev-vfecha').value || v.fecha;
   v.canal  = document.getElementById('ev-vcanal').value;
   v.metodo = document.getElementById('ev-vmetodo').value;
@@ -3101,7 +3113,7 @@ function saveGasto(){
   var desc  = document.getElementById('g-desc').value.trim();
   var monto = parseFloat(document.getElementById('g-monto').value) || 0;
   if(!monto){ snack('El monto no puede ser 0'); return; }
-  gastos.push({ id: newId(), fecha: fecha, cat: cat, desc: desc, monto: monto });
+  gastos.push({ id: Date.now(), fecha: fecha, cat: cat, desc: desc, monto: monto });
   closeM();
   localStorage.setItem('bm_gast', JSON.stringify(gastos));
   if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
@@ -3163,10 +3175,9 @@ function initPOS(){
 function renderPOSGrid(q){
   var el = document.getElementById('pos-grid'); if(!el) return;
   var list = productos.filter(function(p){
-    if(!p || !p.nombre) return false;
     if(!q) return true;
     var ql = q.toLowerCase();
-    return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
+    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
   });
   // Only limit to 30 when no search query (grid view)
   // When searching, show ALL matches so no product is hidden
@@ -3192,8 +3203,7 @@ function posSearch(){
   if(!q){ dd.classList.remove('open'); return; }
   var ql = q.toLowerCase();
   var hits = productos.filter(function(p){
-    if(!p || !p.nombre) return false;
-    return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
+    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
   }).slice(0,8);
   if(!hits.length){ dd.classList.remove('open'); return; }
   dd.innerHTML = hits.map(function(p){
@@ -3336,7 +3346,7 @@ function cobrar(metodo){
   }
   cart.forEach(function(item){
     ventas.push({
-      id: newId(),
+      id: Date.now() + Math.random(),
       fecha: fecha, pid: item.pid, nombre: item.nombre, cat: item.cat,
       cant: item.qty, cu: item.cu, pu: item.pu, estado: 'Ganada',
       metodo: metodo,
@@ -3409,13 +3419,13 @@ function saveSena(){
   var fechaVenta = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
   var telSena = document.getElementById('sena-tel') ? document.getElementById('sena-tel').value||'' : '';
   // Solo crear pedido — la venta se registra cuando se salda la deuda
-  var pedId = newId();
+  var pedId = Date.now();
   pedidos.push({
     id: pedId,
     fecha: fechaVenta, cliente: cli, tel: telSena, detalle: det,
     total: tot, sena: sena, metSena: met,
     entrega: ent, notas: notas,
-    estado: 'Pendiente',
+    estado: (tot-sena)<=0 ? 'Pagado' : 'Pendiente',
     items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; })
   });
   save(); render(); closeM();
@@ -3489,25 +3499,41 @@ function savePago(pedId){
   var saldoRestante = p.total - p.sena;
   // Registrar el pago como venta
   if(saldoRestante <= 0){
-    // Registrar venta completa al entregar
+    // Pedido completamente saldado — registrar venta completa con todos los ítems
     var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0;
-    ventas.push({
-      id: newId(), fecha: hoy(), pid: 0,
-      nombre: p.detalle || 'Encargo — ' + p.cliente,
-      cat: 'Pedidos', cant: 1, cu: costoManual, pu: p.total,
-      estado: 'Ganada', metodo: met,
-      notas: 'Entrega completa · ' + p.cliente + (p.tel ? ' · ' + p.tel : '')
+    var items = p.items && p.items.length ? p.items : [{nombre: p.detalle, qty:1, pu:p.total, cu:costoManual, cat:'Pedidos'}];
+    // If items exist but have no cost, distribute costoManual proportionally
+    if(costoManual > 0 && items.every(function(i){ return !i.cu; })){
+      var totalPu = items.reduce(function(s,i){ return s + (i.pu * (i.qty||1)); }, 0);
+      items = items.map(function(i){
+        var proporcion = totalPu > 0 ? (i.pu * (i.qty||1)) / totalPu : 1/items.length;
+        return Object.assign({}, i, {cu: Math.round(costoManual * proporcion / (i.qty||1))});
+      });
+    }
+    items.forEach(function(item){
+      ventas.push({
+        id: Date.now() + Math.random()*100|0,
+        fecha: hoy(),
+        pid: item.pid || 0,
+        nombre: item.nombre,
+        cat: item.cat || 'Pedidos',
+        cant: item.qty || 1,
+        cu: item.cu || 0,
+        pu: item.pu,
+        estado: 'Ganada',
+        metodo: met,
+        notas: 'Pago final en ' + met + ' · Encargo de ' + p.cliente
+      });
     });
     p.estado = 'Entregado';
-    snack('✓ Pedido de ' + p.cliente + ' entregado y registrado como venta ✓');
+    snack('✓ Pedido de ' + p.cliente + ' saldado y registrado como venta ✓');
   } else {
-    // Pago parcial — registrar el pago
+    // Pago parcial — solo registrar el pago
     ventas.push({
-      id: newId(), fecha: hoy(), pid: 0,
-      nombre: 'PAGO PARCIAL — ' + (p.detalle || p.cliente),
+      id: Date.now(), fecha: hoy(), pid: 0,
+      nombre: 'PAGO PARCIAL — ' + p.cliente,
       cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
-      metodo: met,
-      notas: 'Pago parcial · ' + p.cliente + ' · Saldo restante: ' + $p(saldoRestante)
+      notas: 'Pago en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
     });
     snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
   }
@@ -3594,7 +3620,7 @@ function saveProdRapido(addToCarrito){
   var pventaManual = parseFloat(document.getElementById('qp-pventa').value)||0;
   if(costo===0 && pventaManual===0){ snack('Sin costo: ingresá al menos el precio de venta'); return; }
   var newProd = {
-    id: newId(),
+    id:     Date.now(),
     cod:    document.getElementById('qp-cod').value.trim() || ('BM-' + String(Date.now()).slice(-4)),
     nombre: n,
     cat:    document.getElementById('qp-cat').value,
@@ -3676,7 +3702,7 @@ function saveCat(){
   } else {
     var dup = categorias.find(function(c){ return c.nombre.toLowerCase()===nom.toLowerCase(); });
     if(dup){ snack('Ya existe una categoría con ese nombre'); return; }
-    categorias.push({id: newId(), nombre: nom, color: color});
+    categorias.push({id: Date.now(), nombre: nom, color: color});
     snack('Categoría creada ✓');
   }
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
