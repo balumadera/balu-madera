@@ -2000,6 +2000,11 @@ function snack(msg){
   s.textContent = msg; s.classList.add('show');
   setTimeout(function(){ s.classList.remove('show'); }, 2400);
 }
+var _idCounter = 0;
+function newId(){
+  _idCounter++;
+  return Math.floor(Date.now()) * 1000 + (_idCounter % 1000);
+}
 function catB(c){
   var cat = categorias.find(function(x){ return x.nombre===c; });
   if(cat){
@@ -2671,7 +2676,7 @@ function savePedido(){
   var det  = (document.getElementById('ped-det')||{}).value||'';
   var tel = (document.getElementById('ped-tel')||{}).value||'';
   pedidos.push({
-    id: Date.now(),
+    id: newId(),
     fecha: hoy(),
     cliente: cli.trim(),
     tel: tel,
@@ -2686,7 +2691,7 @@ function savePedido(){
   });
   if(sena > 0){
     ventas.push({
-      id: Date.now()+1, fecha: hoy(), pid: 0,
+      id: newId(), fecha: hoy(), pid: 0,
       nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
       cant: 1, cu: 0, pu: sena, estado: 'Ganada',
       notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
@@ -2785,7 +2790,7 @@ function saveProd(){
         if(!nc){ snack('Escribí el nombre de la nueva categoría'); return null; }
         // Agregar categoría si no existe
         if(!categorias.find(function(c){ return c.nombre===nc; })){
-          categorias.push({id: Date.now(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
+          categorias.push({id: newId(), nombre: nc, color: '#F0EEE9|#5F5E5A'});
           // Guardar categoria nueva en Firebase
           localStorage.setItem('bm_cats', JSON.stringify(categorias));
           if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
@@ -2809,7 +2814,7 @@ function saveProd(){
     productos[i] = Object.assign(productos[i], obj);
     snack('Producto actualizado ✓');
   } else {
-    obj.id = Date.now();
+    obj.id = newId();
     productos.push(obj);
     snack('Producto guardado ✓');
   }
@@ -2823,7 +2828,7 @@ function saveVenta(){
   var pu = parseFloat(document.getElementById('v-pu').value)||0;
   if(!pu){ snack('El precio no puede ser 0'); return; }
   ventas.push({
-    id: Date.now(),
+    id: newId(),
     fecha: document.getElementById('v-fecha').value||hoy(),
     pid: prod.id, nombre: prod.nombre, cat: prod.cat,
     cant: parseInt(document.getElementById('v-cant').value)||1,
@@ -2853,7 +2858,7 @@ function saveCot(){
     cotizaciones[i] = Object.assign(cotizaciones[i], obj);
     snack('Cotización actualizada ✓');
   } else {
-    obj.id = Date.now();
+    obj.id = newId();
     cotizaciones.push(obj);
     snack('Cotización guardada ✓');
   }
@@ -2864,7 +2869,7 @@ function saveVisita(){
   var fecha = document.getElementById('vfecha').value||hoy();
   var tipo  = document.getElementById('vtipo').value;
   var det   = document.getElementById('vdet').value||'';
-  visitas.push({id: Date.now(), fecha: fecha, tipo: tipo, det: det});
+  visitas.push({id: newId(), fecha: fecha, tipo: tipo, det: det});
   document.getElementById('vdet').value = '';
   save(); rVis(); snack('Visita registrada ✓');
 }
@@ -2886,7 +2891,7 @@ function saveProv(){
     proveedores[i] = Object.assign(proveedores[i], obj);
     snack('Proveedor actualizado ✓');
   } else {
-    obj.id = Date.now();
+    obj.id = newId();
     proveedores.push(obj);
     snack('Proveedor guardado ✓');
   }
@@ -3113,7 +3118,7 @@ function saveGasto(){
   var desc  = document.getElementById('g-desc').value.trim();
   var monto = parseFloat(document.getElementById('g-monto').value) || 0;
   if(!monto){ snack('El monto no puede ser 0'); return; }
-  gastos.push({ id: Date.now(), fecha: fecha, cat: cat, desc: desc, monto: monto });
+  gastos.push({ id: newId(), fecha: fecha, cat: cat, desc: desc, monto: monto });
   closeM();
   localStorage.setItem('bm_gast', JSON.stringify(gastos));
   if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){
@@ -3346,7 +3351,7 @@ function cobrar(metodo){
   }
   cart.forEach(function(item){
     ventas.push({
-      id: Date.now() + Math.random(),
+      id: newId(),
       fecha: fecha, pid: item.pid, nombre: item.nombre, cat: item.cat,
       cant: item.qty, cu: item.cu, pu: item.pu, estado: 'Ganada',
       metodo: metodo,
@@ -3419,7 +3424,7 @@ function saveSena(){
   var fechaVenta = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
   var telSena = document.getElementById('sena-tel') ? document.getElementById('sena-tel').value||'' : '';
   // Solo crear pedido — la venta se registra cuando se salda la deuda
-  var pedId = Date.now();
+  var pedId = newId();
   pedidos.push({
     id: pedId,
     fecha: fechaVenta, cliente: cli, tel: telSena, detalle: det,
@@ -3512,7 +3517,7 @@ function savePago(pedId){
     }
     items.forEach(function(item){
       ventas.push({
-        id: Date.now() + Math.random()*100|0,
+        id: newId(),
         fecha: hoy(),
         pid: item.pid || 0,
         nombre: item.nombre,
@@ -3530,7 +3535,7 @@ function savePago(pedId){
   } else {
     // Pago parcial — solo registrar el pago
     ventas.push({
-      id: Date.now(), fecha: hoy(), pid: 0,
+      id: newId(), fecha: hoy(), pid: 0,
       nombre: 'PAGO PARCIAL — ' + p.cliente,
       cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
       notas: 'Pago en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
@@ -3620,7 +3625,7 @@ function saveProdRapido(addToCarrito){
   var pventaManual = parseFloat(document.getElementById('qp-pventa').value)||0;
   if(costo===0 && pventaManual===0){ snack('Sin costo: ingresá al menos el precio de venta'); return; }
   var newProd = {
-    id:     Date.now(),
+    id: newId(),
     cod:    document.getElementById('qp-cod').value.trim() || ('BM-' + String(Date.now()).slice(-4)),
     nombre: n,
     cat:    document.getElementById('qp-cat').value,
@@ -3702,7 +3707,7 @@ function saveCat(){
   } else {
     var dup = categorias.find(function(c){ return c.nombre.toLowerCase()===nom.toLowerCase(); });
     if(dup){ snack('Ya existe una categoría con ese nombre'); return; }
-    categorias.push({id: Date.now(), nombre: nom, color: color});
+    categorias.push({id: newId(), nombre: nom, color: color});
     snack('Categoría creada ✓');
   }
   localStorage.setItem('bm_cats', JSON.stringify(categorias));
