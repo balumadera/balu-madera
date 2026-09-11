@@ -3182,7 +3182,7 @@ function renderPOSGrid(q){
   var list = productos.filter(function(p){
     if(!q) return true;
     var ql = q.toLowerCase();
-    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
+          return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
   });
   // Only limit to 30 when no search query (grid view)
   // When searching, show ALL matches so no product is hidden
@@ -3208,7 +3208,7 @@ function posSearch(){
   if(!q){ dd.classList.remove('open'); return; }
   var ql = q.toLowerCase();
   var hits = productos.filter(function(p){
-    return p.nombre.toLowerCase().includes(ql) || p.cod.toLowerCase().includes(ql);
+          return (p.nombre||'').toLowerCase().includes(ql) || (p.cod||'').toLowerCase().includes(ql);
   }).slice(0,8);
   if(!hits.length){ dd.classList.remove('open'); return; }
   dd.innerHTML = hits.map(function(p){
