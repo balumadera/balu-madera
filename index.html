@@ -3431,7 +3431,8 @@ function saveSena(){
     total: tot, sena: sena, metSena: met,
     entrega: ent, notas: notas,
     estado: (tot-sena)<=0 ? 'Pagado' : 'Pendiente',
-    items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; })
+    items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; }),
+    refuerzos: []
   });
   save(); render(); closeM();
   cart = [];
@@ -3454,6 +3455,25 @@ function openM_pedido_pago(id){
       'Saldo: <b style="color:' + (saldo>0?'var(--red-t)':'var(--green-t)') + '">' + (saldo>0 ? $p(saldo) : 'Saldado ✓') + '</b>' +
       (p.entrega ? '<br>Entrega est.: <b>' + p.entrega + '</b>' : '') +
     '</div>' +
+    ((p.refuerzos && p.refuerzos.length) ?
+      '<div style="background:var(--paper2);border-radius:var(--rad);padding:10px 13px;margin-bottom:14px;font-size:12px">' +
+        '<div style="font-weight:600;margin-bottom:6px;color:var(--ink2)">Refuerzos de seña registrados</div>' +
+        p.refuerzos.map(function(r){
+          return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--paper3)">' +
+            '<span>' + fmtFecha(r.fecha) + ' · ' + r.metodo + '</span>' +
+            '<span style="font-weight:600;color:var(--green-t)">' + $p(r.monto) + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>' : '') +
+    (saldo>0 ?
+      '<div style="background:var(--paper2);border-radius:var(--rad);padding:10px 13px;margin-bottom:14px">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px">+ Refuerzo de seña</div>' +
+        '<div class="fg">' +
+          '<div class="fr"><label>Monto del refuerzo ($)</label><input id="refuerzo-monto" type="number" min="0" placeholder="Ej: 20000"></div>' +
+          '<div class="fr"><label>Método</label><select id="refuerzo-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-g" style="margin-top:8px" onclick="addRefuerzoSena(' + id + ')">+ Agregar refuerzo</button>' +
+      '</div>' : '') +
     '<div class="fg">' +
       '<div class="fr"><label>Estado del pedido</label>' +
         '<select id="ped-est">' +
@@ -3543,6 +3563,29 @@ function savePago(pedId){
     snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
   }
   closeM(); save(); render();
+}
+
+function addRefuerzoSena(pedId){
+  var p = pedidos.find(function(x){ return x.id===pedId; }); if(!p) return;
+  var saldoDisp = p.total - p.sena;
+  var monto = parseFloat(document.getElementById('refuerzo-monto').value)||0;
+  if(!monto){ snack('Ingresá el monto del refuerzo'); return; }
+  if(monto > saldoDisp) monto = saldoDisp;
+  var met = document.getElementById('refuerzo-met').value;
+  p.sena += monto;
+  p.refuerzos = p.refuerzos || [];
+  p.refuerzos.push({id: newId(), fecha: hoy(), monto: monto, metodo: met});
+  if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
+  var saldoRestante = p.total - p.sena;
+  ventas.push({
+    id: newId(), fecha: hoy(), pid: 0,
+    nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
+    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada', metodo: met,
+    notas: 'Refuerzo de seña en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+  });
+  save(); render();
+  snack('✓ Refuerzo de ' + $p(monto) + ' agregado · Saldo restante: ' + $p(saldoRestante));
+  openM_pedido_pago(pedId);
 }
 
 // ── PRODUCTO RÁPIDO DESDE POS ─────────────────────────────────────────────────
