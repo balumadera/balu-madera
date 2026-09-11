@@ -2233,7 +2233,7 @@ function rProd(){
   var pf = document.getElementById('fprov') ? document.getElementById('fprov').value : '';
 
   var list = productos.filter(function(p){
-    if(q  && p.nombre.toLowerCase().indexOf(q) === -1 && p.cod.toLowerCase().indexOf(q) === -1) return false;
+          if(q  && (p.nombre||'').toLowerCase().indexOf(q) === -1 && (p.cod||'').toLowerCase().indexOf(q) === -1) return false;
     if(cf && p.cat  !== cf) return false;
     if(pf && p.prov !== pf) return false;
     return true;
