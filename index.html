@@ -3590,6 +3590,7 @@ function addRefuerzoSena(pedId){
 
 // ── PRODUCTO RÁPIDO DESDE POS ─────────────────────────────────────────────────
 function openProdRapido(){
+  _qpProvs = [];
   var provOpts = proveedores.map(function(p){ return '<option value="'+p.nombre+'">'+p.nombre+'</option>'; }).join('');
   var catOpts = categorias
     .filter(function(c){ return c.nombre && c.nombre.trim() !== ''; })
@@ -3608,8 +3609,14 @@ function openProdRapido(){
       '<div class="fr"><label>Costo ($)</label><input id="qp-costo" type="number" value="0" min="0" onblur="calcQP()"></div>' +
       '<div class="fr"><label>Precio de venta ($)</label><input id="qp-pventa" type="number" value="0" min="0" onblur="calcQPFromPventa()"></div>' +
       '<div class="fr"><label>Margen (%)</label><input id="qp-margen" type="number" value="80" min="0" max="500" onblur="calcQP()"></div>' +
-      '<div class="fr"><label>Proveedor</label><select id="qp-prov"><option value="">Sin proveedor</option>'+provOpts+'</select></div>' +
-      '<div class="fr"><label>Notas</label><input id="qp-notas" type="text" placeholder="Opcional"></div>' +
+      '<div class="fr" style="grid-column:1/-1"><label>Proveedor(es) <span style="font-size:11px;color:var(--ink4)">(agregá uno o más — ej: las mesas de un proveedor y las sillas de otro)</span></label>' +
+        '<div style="display:flex;gap:8px">' +
+          '<select id="qp-prov-add" style="flex:1"><option value="">Elegí un proveedor…</option>'+provOpts+'</select>' +
+          '<button type="button" class="btn" onclick="addQPProv()">+ Agregar</button>' +
+        '</div>' +
+        '<div id="qp-provs-list" style="margin-top:8px"></div>' +
+      '</div>' +
+      '<div class="fr" style="grid-column:1/-1"><label>Notas</label><input id="qp-notas" type="text" placeholder="Opcional"></div>' +
     '</div>' +
     '<div id="qp-prev" class="cprev" style="display:none;margin-top:12px"></div>' +
     '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
@@ -3617,7 +3624,34 @@ function openProdRapido(){
       '<button class="btn btn-g" onclick="saveProdRapido(false)">Guardar en catálogo</button>' +
       '<button class="btn btn-p" onclick="saveProdRapido(true)">Guardar y agregar al carrito</button>' +
     '</div>';
+  renderQPProvs();
   document.getElementById('modal').classList.add('open');
+}
+
+var _qpProvs = [];
+
+function addQPProv(){
+  var sel = document.getElementById('qp-prov-add'); if(!sel) return;
+  var v = sel.value;
+  if(!v) return;
+  if(_qpProvs.indexOf(v) === -1) _qpProvs.push(v);
+  sel.value = '';
+  renderQPProvs();
+}
+
+function removeQPProv(idx){
+  _qpProvs.splice(idx,1);
+  renderQPProvs();
+}
+
+function renderQPProvs(){
+  var el = document.getElementById('qp-provs-list'); if(!el) return;
+  el.innerHTML = _qpProvs.length ? _qpProvs.map(function(nombre, idx){
+    return '<span class="badge" style="background:var(--paper2);color:var(--ink2);margin:0 6px 6px 0;display:inline-flex;align-items:center;gap:6px">' +
+      nombre +
+      '<span style="cursor:pointer;font-weight:700" onclick="removeQPProv('+idx+')">×</span>' +
+    '</span>';
+  }).join('') : '<span style="font-size:12px;color:var(--ink4)">Sin proveedores agregados</span>';
 }
 
 var _qpLastField = '';
@@ -3674,7 +3708,8 @@ function saveProdRapido(addToCarrito){
     cat:    document.getElementById('qp-cat').value,
     costo:  costo,
     margen: margen,
-    prov:   document.getElementById('qp-prov').value||'',
+    prov:   _qpProvs.join(' + '),
+    provs:  _qpProvs.slice(),
     pventa_manual: (_qpLastField === 'pventa' && document.getElementById('qp-pventa') && parseFloat(document.getElementById('qp-pventa').value) > 0) ? parseFloat(document.getElementById('qp-pventa').value) : 0,
     notas:  document.getElementById('qp-notas').value||''
   };
