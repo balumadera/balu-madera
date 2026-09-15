@@ -2915,6 +2915,7 @@ function openEditVenta(id){
   document.getElementById('mbody').innerHTML =
     '<div class="fg">' +
       '<div class="fr"><label>Fecha</label><input id="ev-vfecha" type="date" value="' + (v.fecha||'') + '"></div>' +
+      '<div class="fr"><label>Categoría</label><select id="ev-vcat">'+catOpts+'</select></div>' +
       '<div class="fr"><label>Canal de venta</label>' +
         '<select id="ev-vcanal">' +
           '<option value=""'   + (!v.canal?' selected':'') + '>Sin canal</option>' +
@@ -2951,6 +2952,7 @@ function openEditVenta(id){
 function saveEditVenta(id){
   var v = ventas.find(function(x){ return x.id===id; }); if(!v) return;
   v.fecha  = document.getElementById('ev-vfecha').value || v.fecha;
+  v.cat    = document.getElementById('ev-vcat').value || v.cat;
   v.canal  = document.getElementById('ev-vcanal').value;
   v.metodo = document.getElementById('ev-vmetodo').value;
   v.estado = document.getElementById('ev-vestado').value;
