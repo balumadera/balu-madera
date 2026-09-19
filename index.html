@@ -3523,8 +3523,10 @@ function aplicarRefuerzoPendiente(p){
   ventas.push({
     id: newId(), fecha: hoy(), pid: 0,
     nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
-    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada', metodo: met,
-    notas: 'Refuerzo de seña en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+    // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
+    // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
+    cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada', metodo: met,
+    notas: 'Refuerzo de seña (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
   });
   return monto;
 }
@@ -3597,8 +3599,10 @@ function savePago(pedId){
     ventas.push({
       id: newId(), fecha: hoy(), pid: 0,
       nombre: 'PAGO PARCIAL — ' + p.cliente,
-      cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada',
-      notas: 'Pago en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+      // cu = pu a propósito: es un anticipo, no una venta cerrada — la ganancia
+      // real se contabiliza recién cuando el pedido queda saldado.
+      cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada',
+      notas: 'Pago parcial (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
     });
     snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
   }
@@ -3620,8 +3624,10 @@ function addRefuerzoSena(pedId){
   ventas.push({
     id: newId(), fecha: hoy(), pid: 0,
     nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
-    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada', metodo: met,
-    notas: 'Refuerzo de seña en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+    // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
+    // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
+    cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada', metodo: met,
+    notas: 'Refuerzo de seña (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
   });
   save(); render();
   snack('✓ Refuerzo de ' + $p(monto) + ' agregado · Saldo restante: ' + $p(saldoRestante));
