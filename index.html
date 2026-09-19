@@ -3505,18 +3505,56 @@ function openM_pedido_pago(id){
   document.getElementById('modal').classList.add('open');
 }
 
+function aplicarRefuerzoPendiente(p){
+  // Si quedó un monto cargado en "Monto del refuerzo" sin usar el botón "+ Agregar refuerzo",
+  // lo aplicamos igual para que nunca se pierda al guardar por otro botón.
+  var refInput = document.getElementById('refuerzo-monto');
+  var monto = refInput ? (parseFloat(refInput.value)||0) : 0;
+  if(monto <= 0) return 0;
+  var saldoDisp = p.total - p.sena;
+  if(monto > saldoDisp) monto = saldoDisp;
+  var metSel = document.getElementById('refuerzo-met');
+  var met = metSel ? metSel.value : 'Efectivo';
+  p.sena += monto;
+  p.refuerzos = p.refuerzos || [];
+  p.refuerzos.push({id: newId(), fecha: hoy(), monto: monto, metodo: met});
+  if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
+  var saldoRestante = p.total - p.sena;
+  ventas.push({
+    id: newId(), fecha: hoy(), pid: 0,
+    nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
+    cat: 'Pedidos', cant: 1, cu: 0, pu: monto, estado: 'Ganada', metodo: met,
+    notas: 'Refuerzo de seña en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
+  });
+  return monto;
+}
+
 function savePedEdit(pedId){
   var p = pedidos.find(function(x){ return x.id===pedId; }); if(!p) return;
+  var montoRef = aplicarRefuerzoPendiente(p);
   p.estado  = document.getElementById('ped-est').value;
   p.entrega = document.getElementById('ped-ent').value||'';
   p.notas   = document.getElementById('ped-notas').value||'';
-  closeM(); save(); render(); snack('Pedido actualizado ✓');
+  closeM(); save(); render();
+  snack(montoRef>0 ? ('✓ Refuerzo de ' + $p(montoRef) + ' agregado y cambios guardados') : 'Pedido actualizado ✓');
 }
 
 function savePago(pedId){
   var p = pedidos.find(function(x){ return x.id===pedId; }); if(!p) return;
+  var montoRefAplicado = aplicarRefuerzoPendiente(p);
   var monto = parseFloat(document.getElementById('pago-monto').value)||0;
   if(!monto){ snack('Ingresá el monto'); return; }
+  // Si ya se aplicó un refuerzo arriba, el campo "Monto a cobrar" puede haber quedado
+  // con el saldo viejo (previo al refuerzo) — lo topeamos al saldo real restante.
+  if(montoRefAplicado > 0){
+    var saldoReal = p.total - p.sena;
+    if(monto > saldoReal) monto = saldoReal;
+    if(monto <= 0){
+      closeM(); save(); render();
+      snack('✓ Refuerzo de ' + $p(montoRefAplicado) + ' agregado · Pedido saldado');
+      return;
+    }
+  }
   var met   = document.getElementById('pago-met').value;
   var est   = document.getElementById('ped-est').value;
   p.sena   += monto;
