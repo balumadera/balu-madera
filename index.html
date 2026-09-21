@@ -53,7 +53,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
 /* KPI */
-.kg{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:20px}
+.kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:13px;margin-bottom:20px}
 .kc{background:var(--surf);border:1px solid var(--bord2);border-radius:var(--radl);padding:16px 18px;position:relative;overflow:hidden;box-shadow:var(--sh);transition:box-shadow .15s}
 .kc:hover{box-shadow:var(--shl)}
 .kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
@@ -2115,13 +2115,13 @@ function rDash(){
   var vg = ventas.filter(function(v){ return v.estado==='Ganada'; });
   var tv = vg.reduce(function(s,v){ return s+v.pu*v.cant; }, 0);
   var tg = vg.reduce(function(s,v){ return s+(v.pu-v.cu)*v.cant; }, 0);
-  var mp = tv>0 ? Math.round(tg/tv*100) : 0;
+  var mp = tv>0 ? Math.round(tg/tv*100) : 0; var tgas = (typeof gastos!=='undefined' && gastos ? gastos : []).reduce(function(s,g){ return s+(g.monto||0); }, 0); var tn = tg - tgas;
   var pend = ventas.filter(function(v){ return v.estado==='Pendiente'; }).length;
   var sc = productos.filter(function(p){ return p.costo===0 && p.cat!=='A Medida'; }).length;
 
   document.getElementById('dash-kpis').innerHTML =
     kpiHtml('k-gold','ig','💰', $p(tv), 'Total vendido', 'ventas confirmadas') +
-    kpiHtml('k-green','igr','📈', $p(tg), 'Ganancia bruta', 'margen ' + mp + '%') +
+    kpiHtml('k-green','igr','📈', $p(tg), 'Ganancia bruta', 'margen ' + mp + '%') + kpiHtml('k-green','igr','&#128181;', $p(tn), 'Ganancia neta', 'bruta menos ' + $p(tgas) + ' de gastos') +
     kpiHtml('k-amber','ia','⏳', pend, 'Ventas pendientes', pend>0?'requieren confirmación':'todo confirmado') +
     kpiHtml('k-wood','iw','📦', productos.length, 'Productos', sc>0?(sc+' sin costo'):'todos con costo');
 
