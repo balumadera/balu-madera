@@ -3577,6 +3577,11 @@ function savePago(pedId){
         return Object.assign({}, i, {cu: Math.round(costoManual * proporcion / (i.qty||1))});
       });
     }
+    else if(costoManual === 0 && items.every(function(i){ return !i.cu; })){
+  // Sin costo cargado en items ni en el campo "Costo total": por defecto la ganancia
+  // queda en $0 (cu = pu) en vez de tomar el total como ganancia sin costo.
+  items = items.map(function(i){ return Object.assign({}, i, {cu: i.pu}); });
+  }
     items.forEach(function(item){
       ventas.push({
         id: newId(),
