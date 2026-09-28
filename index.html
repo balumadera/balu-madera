@@ -3472,6 +3472,7 @@ function openM_pedido_pago(id){
         '<div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px">+ Refuerzo de seña</div>' +
         '<div class="fg">' +
           '<div class="fr"><label>Monto del refuerzo ($)</label><input id="refuerzo-monto" type="number" min="0" placeholder="Ej: 20000"></div>' +
+     '<div class="fr"><label>Fecha del refuerzo</label><input id="refuerzo-fecha" type="date" value="'+hoy()+'"></div>' +
           '<div class="fr"><label>Método</label><select id="refuerzo-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
         '</div>' +
         '<button type="button" class="btn btn-g" style="margin-top:8px" onclick="addRefuerzoSena(' + id + ')">+ Agregar refuerzo</button>' +
@@ -3491,6 +3492,7 @@ function openM_pedido_pago(id){
       '<div style="font-size:12px;font-weight:600;color:var(--amber-t);margin-bottom:8px">Registrar pago del saldo</div>' +
       '<div class="fg">' +
         '<div class="fr"><label>Monto a cobrar ($)</label><input id="pago-monto" type="number" value="'+saldo+'" min="0"></div>' +
+     '<div class="fr"><label>Fecha del pago</label><input id="pago-fecha" type="date" value="'+hoy()+'"></div>' +
         ((!p.items || !p.items.length || p.items.every(function(i){ return !i.cu; })) ?
           '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para calcular ganancia)</span></label><input id="pago-costo" type="number" value="0" min="0" placeholder="Opcional"></div>' : '') +
         '<div class="fr"><label>Método</label><select id="pago-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
@@ -3517,11 +3519,11 @@ function aplicarRefuerzoPendiente(p){
   var met = metSel ? metSel.value : 'Efectivo';
   p.sena += monto;
   p.refuerzos = p.refuerzos || [];
-  p.refuerzos.push({id: newId(), fecha: hoy(), monto: monto, metodo: met});
+  p.refuerzos.push({id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), monto: monto, metodo: met});
   if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
   var saldoRestante = p.total - p.sena;
   ventas.push({
-    id: newId(), fecha: hoy(), pid: 0,
+    id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), pid: 0,
     nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
     // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
     // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
@@ -3585,7 +3587,7 @@ function savePago(pedId){
     items.forEach(function(item){
       ventas.push({
         id: newId(),
-        fecha: hoy(),
+        fecha: ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()),
         pid: item.pid || 0,
         nombre: item.nombre,
         cat: item.cat || 'Pedidos',
@@ -3602,7 +3604,7 @@ function savePago(pedId){
   } else {
     // Pago parcial — solo registrar el pago
     ventas.push({
-      id: newId(), fecha: hoy(), pid: 0,
+      id: newId(), fecha: ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()), pid: 0,
       nombre: 'PAGO PARCIAL — ' + p.cliente,
       // cu = pu a propósito: es un anticipo, no una venta cerrada — la ganancia
       // real se contabiliza recién cuando el pedido queda saldado.
@@ -3623,11 +3625,11 @@ function addRefuerzoSena(pedId){
   var met = document.getElementById('refuerzo-met').value;
   p.sena += monto;
   p.refuerzos = p.refuerzos || [];
-  p.refuerzos.push({id: newId(), fecha: hoy(), monto: monto, metodo: met});
+  p.refuerzos.push({id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), monto: monto, metodo: met});
   if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
   var saldoRestante = p.total - p.sena;
   ventas.push({
-    id: newId(), fecha: hoy(), pid: 0,
+    id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), pid: 0,
     nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
     // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
     // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
