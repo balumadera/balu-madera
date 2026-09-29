@@ -2993,7 +2993,7 @@ function saveEditVenta(id){
   v.metodo = document.getElementById('ev-vmetodo').value;
   v.estado = document.getElementById('ev-vestado').value;
   v.pu     = parseFloat(document.getElementById('ev-vpu').value) || v.pu;
-  v.cu     = parseFloat(document.getElementById('ev-vcu').value) || 0;
+  v.cu     = parseFloat(document.getElementById('ev-vcu').value) || v.cu || 0;
   v.notas  = document.getElementById('ev-vnotas').value || '';
   closeM(); save(); rVentas(); snack('Venta actualizada ✓');
 }
