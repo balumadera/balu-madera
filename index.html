@@ -3530,7 +3530,7 @@ function openM_pedido_pago(id){
         '<div class="fr"><label>Monto a cobrar ($)</label><input id="pago-monto" type="number" value="'+saldo+'" min="0"></div>' +
      '<div class="fr"><label>Fecha del pago</label><input id="pago-fecha" type="date" value="'+hoy()+'"></div>' +
         ((!p.items || !p.items.length || p.items.every(function(i){ return !i.cu; })) ?
-          '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para calcular ganancia)</span></label><input id="pago-costo" type="number" value="0" min="0" placeholder="Opcional"></div>' : '') +
+          '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para calcular ganancia; se guarda aunque el pago sea parcial)</span></label><input id="pago-costo" type="number" value="'+(p.costoGuardado||0)+'" min="0" placeholder="Opcional"></div>' : '') +
         '<div class="fr"><label>Método</label><select id="pago-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
       '</div>' +
     '</div>' : '') +
@@ -3605,7 +3605,7 @@ function savePago(pedId){
   // Registrar el pago como venta
   if(saldoRestante <= 0){
     // Pedido completamente saldado — registrar venta completa con todos los ítems
-    var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0;
+    var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0; if(!costoManual && p.costoGuardado) costoManual = p.costoGuardado;
     var items = p.items && p.items.length ? p.items : [{nombre: p.detalle, qty:1, pu:p.total, cu:costoManual, cat:'Pedidos'}];
     // If items exist but have no cost, distribute costoManual proportionally
     if(costoManual > 0 && items.every(function(i){ return !i.cu; })){
@@ -3647,7 +3647,7 @@ function savePago(pedId){
       cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada',
       notas: 'Pago parcial (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
     });
-    snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
+    var costoManualParcial = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0; if(costoManualParcial > 0) p.costoGuardado = costoManualParcial; snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante) + (costoManualParcial>0 ? ' · Costo guardado para el cierre ✓' : ''));
   }
   closeM(); save(); render();
 }
