@@ -225,18 +225,18 @@ textarea{resize:vertical;min-height:68px}
 .saldo-chip{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--red-bg);color:var(--red-t)}
 .saldo-ok{background:var(--green-bg);color:var(--green-t)}
 /* TICKET 80mm (impresora termica) */
-#ticket-print{display:none;width:72mm;padding:2mm 2mm 6mm;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.35;color:#000;background:#fff}
+#ticket-print{display:none;width:72mm;padding:0 1mm 1mm;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.2;color:#000;background:#fff}
 #ticket-print.tk-measure{display:block;position:absolute;left:-9999px;top:0}
 #ticket-print .tk-c{text-align:center}
 #ticket-print .tk-h{font-size:19px;font-weight:700;letter-spacing:.5px}
 #ticket-print .tk-t{font-size:13px;font-weight:700;margin-top:2px}
 #ticket-print .tk-s{font-size:11px}
 #ticket-print .tk-b{font-weight:700}
-#ticket-print .tk-hr{border-top:1px dashed #000;margin:5px 0}
+#ticket-print .tk-hr{border-top:1px dashed #000;margin:3px 0}
 #ticket-print .tk-row{display:flex;justify-content:space-between;gap:8px}
 #ticket-print .tk-row span:last-child{white-space:nowrap;text-align:right}
 #ticket-print .tk-tot{font-size:16px;font-weight:700}
-#ticket-print .tk-it{margin-bottom:3px}
+#ticket-print .tk-it{margin-bottom:1px}
 .tk-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;color:var(--ink3)}
 .tk-bar label{display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600}
 @media print{
@@ -3470,8 +3470,10 @@ function buildTicketHTML(t){
     var conPrecios = t.tipo === 'venta' || Math.abs(suma - (t.total||0)) < 1;
     items.forEach(function(i){
       var q = i.qty || 1;
-      h += '<div class="tk-it"><div class="tk-b">' + tkEsc(i.nombre) + '</div>';
-      h += conPrecios ? tkRow(q + ' x ' + $p(i.pu||0), $p((i.pu||0) * q)) : '<div>Cantidad: ' + q + '</div>';
+      h += '<div class="tk-it">';
+      if(!conPrecios) h += '<div class="tk-b">' + tkEsc(i.nombre) + (q > 1 ? ' x' + q : '') + '</div>';
+      else if(q === 1) h += tkRow(i.nombre, $p(i.pu||0), 'tk-b');
+      else h += '<div class="tk-b">' + tkEsc(i.nombre) + '</div>' + tkRow(q + ' x ' + $p(i.pu||0), $p((i.pu||0) * q));
       h += '</div>';
     });
   } else if(t.detalle){
@@ -3501,11 +3503,11 @@ function printTicket(t){
   el.innerHTML = buildTicketHTML(t);
   // Medimos el alto real para que la hoja termine justo donde termina el ticket
   el.classList.add('tk-measure');
-  var altoMm = Math.ceil(el.offsetHeight * 25.4 / 96) + 6;
+  var altoMm = Math.ceil(el.offsetHeight * 25.4 / 96) + 2;
   el.classList.remove('tk-measure');
   var st = document.getElementById('tk-page-style');
   if(!st){ st = document.createElement('style'); st.id = 'tk-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page{size:80mm ' + Math.max(100, altoMm) + 'mm;margin:0}';
+  st.textContent = '@page{size:80mm ' + Math.max(82, altoMm) + 'mm;margin:0}';
   document.body.classList.add('printing-ticket');
   var fin = function(){
     document.body.classList.remove('printing-ticket');
