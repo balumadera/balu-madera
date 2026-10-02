@@ -2382,6 +2382,7 @@ function rVentas(){
       '<td style="color:var(--green);font-weight:600">' + (g!==null ? $p(g) : '—') + '</td>' +
       '<td>' + estB(v.estado) + '</td>' +
       '<td><div style="display:flex;gap:5px">' +
+        '<button class="btn btn-sm" title="Imprimir ticket" onclick="ticketVenta(' + v.id + ')">🧾</button>' +
         '<button class="btn btn-sm" onclick="openEditVenta(' + v.id + ')">✏️</button>' +
         '<button class="btn btn-sm btn-d" onclick="delVenta(' + v.id + ')">×</button>' +
       '</div></td></tr>';
@@ -3492,6 +3493,23 @@ function ticketDePedido(p, tipo){
 function ticketPedido(id){
   var p = pedidos.find(function(x){ return x.id===id; });
   if(p) printTicket(ticketDePedido(p, 'pedido'));
+}
+// Ticket desde la solapa Ventas: junta los ítems que se cobraron juntos en la misma venta
+function ticketVenta(id){
+  var v = ventas.find(function(x){ return x.id===id; }); if(!v) return;
+  var umbral = v.id < 1e14 ? 3000 : 3000000; // ~3 segundos, según el formato del id
+  var grupo = ventas.filter(function(x){
+    return x.fecha===v.fecha && (x.metodo||'')===(v.metodo||'') && (x.notas||'')===(v.notas||'') && Math.abs(x.id - v.id) < umbral;
+  }).sort(function(a,b){ return a.id - b.id; });
+  if(!grupo.length) grupo = [v];
+  var notas = v.notas || '';
+  var m = /Cliente: (.*?) · /.exec(notas) || /Encargo de (.+)$/.exec(notas);
+  var met = v.metodo || ((/Cobrado: (.+)$/.exec(notas) || [])[1]) || '';
+  printTicket({
+    tipo: 'venta', fecha: v.fecha, cliente: m ? m[1] : '', metodo: met,
+    total: grupo.reduce(function(s,x){ return s + (x.pu||0) * (x.cant||1); }, 0),
+    items: grupo.map(function(x){ return {nombre:x.nombre, qty:x.cant, pu:x.pu}; })
+  });
 }
 
 function cobrar(metodo){
