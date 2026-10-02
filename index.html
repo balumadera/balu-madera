@@ -224,6 +224,26 @@ textarea{resize:vertical;min-height:68px}
 .ped-badge-can{background:var(--red-bg);color:var(--red-t)}
 .saldo-chip{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--red-bg);color:var(--red-t)}
 .saldo-ok{background:var(--green-bg);color:var(--green-t)}
+/* TICKET 80mm (impresora termica) */
+#ticket-print{display:none;width:72mm;padding:2mm 2mm 6mm;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.35;color:#000;background:#fff}
+#ticket-print.tk-measure{display:block;position:absolute;left:-9999px;top:0}
+#ticket-print .tk-c{text-align:center}
+#ticket-print .tk-h{font-size:19px;font-weight:700;letter-spacing:.5px}
+#ticket-print .tk-t{font-size:13px;font-weight:700;margin-top:2px}
+#ticket-print .tk-s{font-size:11px}
+#ticket-print .tk-b{font-weight:700}
+#ticket-print .tk-hr{border-top:1px dashed #000;margin:5px 0}
+#ticket-print .tk-row{display:flex;justify-content:space-between;gap:8px}
+#ticket-print .tk-row span:last-child{white-space:nowrap;text-align:right}
+#ticket-print .tk-tot{font-size:16px;font-weight:700}
+#ticket-print .tk-it{margin-bottom:3px}
+.tk-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;color:var(--ink3)}
+.tk-bar label{display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600}
+@media print{
+  html,body.printing-ticket{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;margin:0!important;padding:0!important}
+  body.printing-ticket > *:not(#ticket-print){display:none!important}
+  body.printing-ticket #ticket-print{display:block!important;position:static!important}
+}
 </style>
 </head>
 <body>
@@ -340,6 +360,10 @@ textarea{resize:vertical;min-height:68px}
               <button class="pos-pbtn cc" id="pb-cc" onclick="cobrar('Cta. corriente')" disabled>📒 Cta. corriente</button>
             </div>
             <button id="pb-sena" onclick="openModalSena()" disabled style="width:100%;margin-top:7px;padding:11px;border-radius:var(--rad);border:2px dashed var(--amber);background:var(--amber-bg);color:var(--amber-t);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s">📝 Encargo con seña</button>
+            <div class="tk-bar">
+              <label title="Imprime el ticket automáticamente al cobrar o registrar un encargo"><input type="checkbox" id="tk-auto" onchange="tkSetAuto(this.checked)"> 🧾 Imprimir ticket al cobrar</label>
+              <button type="button" class="btn btn-sm" onclick="printTicket(lastTicket)">Reimprimir último</button>
+            </div>
           </div>
         </div>
       </div>
@@ -570,6 +594,9 @@ textarea{resize:vertical;min-height:68px}
 </div>
 
 <div class="snack" id="snack"></div>
+
+<!-- TICKET (solo visible al imprimir) -->
+<div id="ticket-print"></div>
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
@@ -3209,6 +3236,7 @@ function rGastos(){
 var cart = [];
 
 function initPOS(){
+  var tka = document.getElementById('tk-auto'); if(tka) tka.checked = tkAuto();
   var vf = document.getElementById('pos-s'); if(vf) vf.value='';
   var fd = document.getElementById('pos-fecha'); if(fd && !fd.value) fd.value = hoy();
   renderPOSGrid('');
@@ -3372,6 +3400,100 @@ function updateStockAfterSale(cartItems){
   localStorage.setItem('bm_prod', JSON.stringify(productos));
 }
 
+// ── TICKET (impresora térmica 80mm) ──────────────────────────────────────────
+// Datos del encabezado/pie del ticket: editar acá.
+var TICKET_CFG = {
+  nombre: 'BALU MADERA',
+  linea2: 'Marcos Paz, Buenos Aires',
+  contacto: '',
+  pie: '¡Gracias por tu compra!',
+  legal: 'Documento no válido como factura'
+};
+var lastTicket = null;
+function tkEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function tkAuto(){ try { return localStorage.getItem('bm_ticket_auto') !== '0'; } catch(e){ return true; } }
+function tkSetAuto(on){ try { localStorage.setItem('bm_ticket_auto', on ? '1' : '0'); } catch(e){} }
+function tkRow(l, r, cls){ return '<div class="tk-row' + (cls?' '+cls:'') + '"><span>' + tkEsc(l) + '</span><span>' + tkEsc(r) + '</span></div>'; }
+
+function buildTicketHTML(t){
+  var C = TICKET_CFG, h = '';
+  var titulos = {venta:'COMPROBANTE DE VENTA', sena:'ENCARGO CON SEÑA', pedido:'ESTADO DE PEDIDO'};
+  h += '<div class="tk-c tk-h">' + tkEsc(C.nombre) + '</div>';
+  if(C.linea2)   h += '<div class="tk-c tk-s">' + tkEsc(C.linea2) + '</div>';
+  if(C.contacto) h += '<div class="tk-c tk-s">' + tkEsc(C.contacto) + '</div>';
+  h += '<div class="tk-hr"></div>';
+  h += '<div class="tk-c tk-t">' + (titulos[t.tipo] || titulos.venta) + '</div>';
+  var hora = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit', hour12:false});
+  h += tkRow('Fecha: ' + fmtFecha(t.fecha || hoy()), hora);
+  if(t.cliente) h += '<div>Cliente: <span class="tk-b">' + tkEsc(t.cliente) + '</span></div>';
+  if(t.tel)     h += '<div>Tel: ' + tkEsc(t.tel) + '</div>';
+  h += '<div class="tk-hr"></div>';
+  var items = t.items || [];
+  if(items.length){
+    var suma = items.reduce(function(s,i){ return s + (i.pu||0) * (i.qty||1); }, 0);
+    var conPrecios = t.tipo === 'venta' || Math.abs(suma - (t.total||0)) < 1;
+    items.forEach(function(i){
+      var q = i.qty || 1;
+      h += '<div class="tk-it"><div class="tk-b">' + tkEsc(i.nombre) + '</div>';
+      h += conPrecios ? tkRow(q + ' x ' + $p(i.pu||0), $p((i.pu||0) * q)) : '<div>Cantidad: ' + q + '</div>';
+      h += '</div>';
+    });
+  } else if(t.detalle){
+    h += '<div class="tk-b">' + tkEsc(t.detalle) + '</div>';
+  }
+  h += '<div class="tk-hr"></div>';
+  h += tkRow('TOTAL', $p(t.total||0), 'tk-tot');
+  if(t.tipo === 'venta'){
+    if(t.metodo) h += tkRow('Forma de pago', t.metodo);
+  } else {
+    var abonado = t.abonado || 0, saldo = Math.max(0, (t.total||0) - abonado);
+    h += tkRow(t.tipo === 'sena' ? 'Seña' + (t.metodo ? ' (' + t.metodo + ')' : '') : 'Abonado', $p(abonado));
+    h += saldo > 0 ? tkRow('SALDO PENDIENTE', $p(saldo), 'tk-b') : '<div class="tk-c tk-b">PEDIDO SALDADO</div>';
+    if(t.entrega) h += '<div>Entrega estimada: <span class="tk-b">' + fmtFecha(t.entrega) + '</span></div>';
+    if(t.notas)   h += '<div class="tk-s">Notas: ' + tkEsc(t.notas) + '</div>';
+  }
+  h += '<div class="tk-hr"></div>';
+  if(C.pie)   h += '<div class="tk-c tk-b">' + tkEsc(C.pie) + '</div>';
+  if(C.legal) h += '<div class="tk-c tk-s">' + tkEsc(C.legal) + '</div>';
+  return h;
+}
+
+function printTicket(t){
+  if(!t){ snack('Todavía no hay ningún ticket para imprimir'); return; }
+  lastTicket = t;
+  var el = document.getElementById('ticket-print'); if(!el) return;
+  el.innerHTML = buildTicketHTML(t);
+  // Medimos el alto real para que la hoja termine justo donde termina el ticket
+  el.classList.add('tk-measure');
+  var altoMm = Math.ceil(el.offsetHeight * 25.4 / 96) + 6;
+  el.classList.remove('tk-measure');
+  var st = document.getElementById('tk-page-style');
+  if(!st){ st = document.createElement('style'); st.id = 'tk-page-style'; document.head.appendChild(st); }
+  st.textContent = '@page{size:80mm ' + Math.max(60, altoMm) + 'mm;margin:0}';
+  document.body.classList.add('printing-ticket');
+  var fin = function(){
+    document.body.classList.remove('printing-ticket');
+    st.textContent = '';
+    window.removeEventListener('afterprint', fin);
+  };
+  window.addEventListener('afterprint', fin);
+  // Pequeña espera para que el guardado en Firebase salga antes de abrir la impresión
+  setTimeout(function(){ window.print(); }, 400);
+}
+
+function ticketDePedido(p, tipo){
+  return {
+    tipo: tipo || 'pedido', fecha: (tipo === 'sena' ? p.fecha : hoy()), cliente: p.cliente, tel: p.tel,
+    items: (p.items||[]).map(function(i){ return {nombre:i.nombre, qty:i.qty, pu:i.pu}; }),
+    detalle: p.detalle, total: p.total, abonado: p.sena, metodo: p.metSena,
+    entrega: p.entrega, notas: p.notas
+  };
+}
+function ticketPedido(id){
+  var p = pedidos.find(function(x){ return x.id===id; });
+  if(p) printTicket(ticketDePedido(p, 'pedido'));
+}
+
 function cobrar(metodo){
   if(!cart.length) return;
   var fechaEl = document.getElementById('pos-fecha');
@@ -3397,6 +3519,8 @@ function cobrar(metodo){
       notas: (cli?'Cliente: '+cli+' · ':'') + 'Cobrado: ' + metodo
     });
   });
+  var tkVenta = {tipo:'venta', fecha:fecha, cliente:cli, metodo:metodo, total:total,
+    items: cart.map(function(i){ return {nombre:i.nombre, qty:i.qty, pu:i.pu}; })};
   updateStockAfterSale(cart.slice());
   save();
   snack('✓ Cobrado ' + $p(total) + ' en ' + metodo + ' · ' + nItems + ' artículo' + (nItems>1?'s':''));
@@ -3405,6 +3529,8 @@ function cobrar(metodo){
   var fd2=document.getElementById('pos-fecha'); if(fd2) fd2.value=hoy();
   renderCart();
   render();
+  lastTicket = tkVenta;
+  if(tkAuto()) printTicket(tkVenta);
 }
 
 // ── SEÑA / PEDIDOS MODALES ────────────────────────────────────────────────────
@@ -3472,12 +3598,15 @@ function saveSena(){
     items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; }),
     refuerzos: []
   });
+  var tkSena = ticketDePedido(pedidos[pedidos.length-1], 'sena');
   save(); render(); closeM();
   cart = [];
   var c=document.getElementById('pos-cli'); if(c) c.value='';
   var fd3=document.getElementById('pos-fecha'); if(fd3) fd3.value=hoy();
   renderCart();
   snack('✓ Encargo de ' + cli + ' registrado · Seña ' + $p(sena) + ' en ' + met);
+  lastTicket = tkSena;
+  if(tkAuto()) printTicket(tkSena);
 }
 
 // pedido modal for edit + pago
@@ -3535,6 +3664,7 @@ function openM_pedido_pago(id){
       '</div>' +
     '</div>' : '') +
     '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+      '<button type="button" class="btn" onclick="ticketPedido('+id+')">🧾 Ticket</button>' +
       '<button class="btn" onclick="closeM()">Cancelar</button>' +
       (saldo>0 ? '<button type="button" class="btn btn-g" onclick="savePago('+id+')">Guardar + registrar pago</button>' : '') +
       '<button type="button" class="btn btn-p" onclick="savePedEdit('+id+')">Guardar cambios</button>' +
