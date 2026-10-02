@@ -3501,13 +3501,11 @@ function printTicket(t){
   lastTicket = t;
   var el = document.getElementById('ticket-print'); if(!el) return;
   el.innerHTML = buildTicketHTML(t);
-  // Medimos el alto real para que la hoja termine justo donde termina el ticket
-  el.classList.add('tk-measure');
-  var altoMm = Math.ceil(el.offsetHeight * 25.4 / 96) + 2;
-  el.classList.remove('tk-measure');
+  // Sin tamaño de hoja propio: Chrome lo centraba dentro del papel del driver.
+  // Usamos el papel de la impresora, sin márgenes, con el ticket pegado arriba.
   var st = document.getElementById('tk-page-style');
   if(!st){ st = document.createElement('style'); st.id = 'tk-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page{size:80mm ' + Math.max(82, altoMm) + 'mm;margin:0}';
+  st.textContent = '@page{margin:0}';
   document.body.classList.add('printing-ticket');
   var fin = function(){
     document.body.classList.remove('printing-ticket');
