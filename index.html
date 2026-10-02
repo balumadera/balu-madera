@@ -363,6 +363,7 @@ textarea{resize:vertical;min-height:68px}
             <div class="tk-bar">
               <label title="Imprime el ticket automáticamente al cobrar o registrar un encargo"><input type="checkbox" id="tk-auto" onchange="tkSetAuto(this.checked)"> 🧾 Imprimir ticket al cobrar</label>
               <button type="button" class="btn btn-sm" onclick="printTicket(lastTicket)">Reimprimir último</button>
+              <button type="button" class="btn btn-sm" title="Datos que salen en el ticket" onclick="openTicketCfg()">⚙️</button>
             </div>
           </div>
         </div>
@@ -3405,21 +3406,55 @@ function updateStockAfterSale(cartItems){
 // Datos del encabezado/pie del ticket: editar acá.
 var TICKET_CFG = {
   nombre: 'BALU MADERA',
+  titular: 'Maximiliano Zicuela',
+  fiscal: '',
   linea2: 'Marcos Paz, Buenos Aires',
   contacto: '',
   pie: '¡Gracias por tu compra!',
   legal: 'Documento no válido como factura'
 };
 var lastTicket = null;
+var TK_CAMPOS = [
+  ['nombre','Nombre del negocio'], ['titular','Titular'], ['fiscal','Dato fiscal (ej: CUIL ...)'],
+  ['linea2','Dirección / localidad'], ['contacto','Teléfono / Instagram'], ['pie','Mensaje final'], ['legal','Leyenda legal']
+];
+function tkCfg(){
+  var c = Object.assign({}, TICKET_CFG);
+  try { Object.assign(c, JSON.parse(localStorage.getItem('bm_ticket_cfg') || '{}')); } catch(e){}
+  return c;
+}
+function tkAttr(s){ return tkEsc(s).replace(/"/g,'&quot;'); }
+function openTicketCfg(){
+  var c = tkCfg();
+  document.getElementById('mtitle').innerHTML = 'Datos del ticket <button class="xb" onclick="closeM()">×</button>';
+  document.getElementById('mbody').innerHTML =
+    '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">Estos textos salen impresos en el ticket y se guardan en esta computadora. Dejá vacío lo que no quieras mostrar.</div>' +
+    '<div class="fg">' + TK_CAMPOS.map(function(f){
+      return '<div class="fr" style="grid-column:1/-1"><label>' + f[1] + '</label><input id="tkc-' + f[0] + '" type="text" value="' + tkAttr(c[f[0]] || '') + '"></div>';
+    }).join('') + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+      '<button class="btn" onclick="closeM()">Cancelar</button>' +
+      '<button class="btn btn-g" onclick="saveTicketCfg()">Guardar</button>' +
+    '</div>';
+  document.getElementById('modal').classList.add('open');
+}
+function saveTicketCfg(){
+  var c = {};
+  TK_CAMPOS.forEach(function(f){ var el = document.getElementById('tkc-' + f[0]); if(el) c[f[0]] = el.value.trim(); });
+  try { localStorage.setItem('bm_ticket_cfg', JSON.stringify(c)); } catch(e){}
+  closeM(); snack('Datos del ticket guardados ✓');
+}
 function tkEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function tkAuto(){ try { return localStorage.getItem('bm_ticket_auto') !== '0'; } catch(e){ return true; } }
 function tkSetAuto(on){ try { localStorage.setItem('bm_ticket_auto', on ? '1' : '0'); } catch(e){} }
 function tkRow(l, r, cls){ return '<div class="tk-row' + (cls?' '+cls:'') + '"><span>' + tkEsc(l) + '</span><span>' + tkEsc(r) + '</span></div>'; }
 
 function buildTicketHTML(t){
-  var C = TICKET_CFG, h = '';
+  var C = tkCfg(), h = '';
   var titulos = {venta:'COMPROBANTE DE VENTA', sena:'ENCARGO CON SEÑA', pedido:'ESTADO DE PEDIDO'};
   h += '<div class="tk-c tk-h">' + tkEsc(C.nombre) + '</div>';
+  if(C.titular)  h += '<div class="tk-c">' + tkEsc(C.titular) + '</div>';
+  if(C.fiscal)   h += '<div class="tk-c tk-s">' + tkEsc(C.fiscal) + '</div>';
   if(C.linea2)   h += '<div class="tk-c tk-s">' + tkEsc(C.linea2) + '</div>';
   if(C.contacto) h += '<div class="tk-c tk-s">' + tkEsc(C.contacto) + '</div>';
   h += '<div class="tk-hr"></div>';
@@ -3470,7 +3505,7 @@ function printTicket(t){
   el.classList.remove('tk-measure');
   var st = document.getElementById('tk-page-style');
   if(!st){ st = document.createElement('style'); st.id = 'tk-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page{size:80mm ' + Math.max(60, altoMm) + 'mm;margin:0}';
+  st.textContent = '@page{size:80mm ' + Math.max(100, altoMm) + 'mm;margin:0}';
   document.body.classList.add('printing-ticket');
   var fin = function(){
     document.body.classList.remove('printing-ticket');
