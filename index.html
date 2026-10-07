@@ -2375,7 +2375,10 @@ function rVentas(){
   document.getElementById('vent-tbody').innerHTML = list.length ? list.map(function(v){
     var t=v.pu*v.cant, g=(v.pu-v.cu)*v.cant;
     return '<tr><td style="font-size:12px;color:var(--ink3)">' + fmtFecha(v.fecha) + '</td>' +
-      '<td style="font-weight:500">' + v.nombre + '</td>' +
+      '<td style="font-weight:500">' + v.nombre + (v.pedId ? (function(){
+          var pp = pedidos.find(function(x){ return x.id === v.pedId; }); if(!pp) return '';
+          return '<div style="font-size:11px;font-weight:400;color:var(--ink3)">Pedido de ' + $p(pp.total) + ' · cobrado ' + $p(pp.sena) + (pedCosto(pp) > 0 ? '' : ' · <span style="color:var(--red-t)">sin costo cargado</span>') + '</div>';
+        })() : '') + '</td>' +
       '<td>' + catB(v.cat) + '</td>' +
       '<td style="text-align:center;font-weight:600">' + v.cant + '</td>' +
       '<td>' + $p(v.pu) + '</td>' +
@@ -2383,6 +2386,7 @@ function rVentas(){
       '<td style="color:var(--green);font-weight:600">' + (g!==null ? $p(g) : '—') + '</td>' +
       '<td>' + estB(v.estado) + '</td>' +
       '<td><div style="display:flex;gap:5px">' +
+        (v.pedId ? '<button class="btn btn-sm" title="Historial de pagos del cliente" onclick="openHistPed(' + v.pedId + ')">📜</button>' : '') +
         '<button class="btn btn-sm" title="Imprimir ticket" onclick="ticketVenta(' + v.id + ')">🧾</button>' +
         '<button class="btn btn-sm" onclick="openEditVenta(' + v.id + ')">✏️</button>' +
         '<button class="btn btn-sm btn-d" onclick="delVenta(' + v.id + ')">×</button>' +
@@ -2702,6 +2706,7 @@ function openM(tipo, id){
         '<div class="fr"><label>Teléfono / WhatsApp</label><input id="ped-tel" type="text" placeholder="Ej: 11-1234-5678"></div>' +
         '<div class="fr"><label>Detalle</label><input id="ped-det" type="text" placeholder="Ej: Mesa de luz nogal x2"></div>' +
         '<div class="fr"><label>Total ($) *</label><input id="ped-tot" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
+        '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para la ganancia)</span></label><input id="ped-costo" type="number" min="0" value="0"></div>' +
         '<div class="fr"><label>Seña ($)</label><input id="ped-sena" type="number" min="0" value="0" oninput="calcPedPrev()"></div>' +
         '<div class="fr"><label>Método seña</label><select id="ped-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
         '<div class="fr"><label>Fecha entrega</label><input id="ped-ent" type="date"></div>' +
@@ -2752,16 +2757,10 @@ function savePedido(){
     entrega: ent,
     notas: notas,
     estado: sena >= tot ? 'Parcialmente pagado' : 'Pendiente',
+    costo: parseFloat((document.getElementById('ped-costo')||{}).value)||0,
     items: []
   });
-  if(sena > 0){
-    ventas.push({
-      id: newId(), fecha: hoy(), pid: 0,
-      nombre: 'SEÑA — ' + cli.trim(), cat: 'Pedidos',
-      cant: 1, cu: 0, pu: sena, estado: 'Ganada',
-      notas: 'Seña en ' + met + ' · ' + det.slice(0,50)
-    });
-  }
+  if(sena > 0) pedCobro(pedidos[pedidos.length-1], 'Seña', sena, hoy(), met);
   save(); render(); closeM();
   snack('✓ Pedido de ' + cli.trim() + ' guardado');
 }
@@ -3526,6 +3525,74 @@ function printTicket(t){
   setTimeout(function(){ window.print(); }, 400);
 }
 
+// ── PEDIDOS ↔ VENTAS: cada cobro de un pedido es una fila en Ventas (pedId) ──
+// La ganancia se reparte en proporción a lo cobrado: costo de la fila = monto × costo total / total.
+function pedCosto(p){
+  if(p.costo > 0) return p.costo;
+  if(p.costoGuardado > 0) return p.costoGuardado;
+  return (p.items||[]).reduce(function(s,i){ return s + (i.cu||0) * (i.qty||1); }, 0);
+}
+function pedCat(p){
+  var its = p.items || [];
+  if(its.length && its[0].cat && its.every(function(i){ return i.cat === its[0].cat; })) return its[0].cat;
+  return 'Pedidos';
+}
+function pedVentas(p){
+  return ventas.filter(function(v){ return v.pedId === p.id; })
+    .sort(function(a,b){ return String(a.fecha).localeCompare(String(b.fecha)) || (a.id - b.id); });
+}
+function pedRecalc(p){
+  var costo = pedCosto(p), tot = p.total || 0, acum = 0, cobr = 0;
+  var rows = pedVentas(p);
+  rows.forEach(function(v, idx){
+    var m = (v.pu||0) * (v.cant||1); cobr += m;
+    if(!(costo > 0) || !(tot > 0)){ v.cu = v.pu; return; } // sin costo cargado: ganancia $0 hasta que se cargue
+    var c = (cobr >= tot && idx === rows.length-1) ? (costo - acum) : Math.round(m * costo / tot);
+    v.cu = c / (v.cant||1); acum += c;
+  });
+}
+function pedCobro(p, tipo, monto, fecha, met){
+  ventas.push({
+    id: newId(), fecha: fecha || hoy(), pid: 0, pedId: p.id,
+    nombre: tipo.toUpperCase() + ' — ' + p.cliente + (p.detalle ? ' · ' + String(p.detalle).slice(0,40) : ''),
+    cat: pedCat(p), cant: 1, cu: monto, pu: monto, estado: 'Ganada', metodo: met,
+    notas: tipo + ' en ' + met + ' · Encargo de ' + p.cliente
+  });
+  pedRecalc(p);
+}
+function pedLeerCosto(p){
+  var el = document.getElementById('ped-costo');
+  if(el){ p.costo = parseFloat(el.value) || 0; pedRecalc(p); }
+}
+function openHistPed(pedId){
+  var p = pedidos.find(function(x){ return x.id === pedId; });
+  if(!p){ snack('El pedido de esta venta ya no existe'); return; }
+  var rows = pedVentas(p), costo = pedCosto(p);
+  var gan = rows.reduce(function(s,v){ return s + ((v.pu||0) - (v.cu||0)) * (v.cant||1); }, 0);
+  var saldo = (p.total||0) - (p.sena||0);
+  var fila = function(a, b, c){ return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--paper3)"><span>' + a + '</span><span style="white-space:nowrap">' + b + (c ? ' <span style="color:var(--green-t);font-weight:600">' + c + '</span>' : '') + '</span></div>'; };
+  document.getElementById('mtitle').innerHTML = 'Historial de pagos: ' + p.cliente + ' <button class="xb" onclick="closeM()">×</button>';
+  document.getElementById('mbody').innerHTML =
+    '<div style="background:var(--paper2);border-radius:var(--rad);padding:10px 13px;margin-bottom:14px;font-size:13px;line-height:1.7">' +
+      '<b>' + p.cliente + '</b> · ' + (p.detalle||'') + ' · pedido del ' + fmtFecha(p.fecha) + '<br>' +
+      'Total: <b>' + $p(p.total) + '</b> · Cobrado: <b style="color:var(--green-t)">' + $p(p.sena) + '</b> · Saldo: <b style="color:' + (saldo>0?'var(--red-t)':'var(--green-t)') + '">' + (saldo>0 ? $p(saldo) : 'Saldado ✓') + '</b><br>' +
+      'Costo total: <b>' + (costo>0 ? $p(costo) : 'sin cargar') + '</b>' +
+      (costo>0 ? ' · Ganancia acumulada: <b style="color:var(--green-t)">' + $p(gan) + '</b> de ' + $p((p.total||0) - costo) : '') +
+    '</div>' +
+    '<div style="font-size:13px">' +
+      '<div style="font-weight:600;margin-bottom:6px;color:var(--ink2)">Pagos (fecha · tipo · método → monto y ganancia)</div>' +
+      (rows.length ? rows.map(function(v){
+        return fila('<b>' + fmtFecha(v.fecha) + '</b> · ' + String(v.nombre).split(' — ')[0] + (v.metodo ? ' · ' + v.metodo : ''), $p((v.pu||0)*(v.cant||1)), costo>0 ? '+' + $p(((v.pu||0)-(v.cu||0))*(v.cant||1)) : '');
+      }).join('') : pedMovs(p).map(function(m){
+        return fila('<b>' + fmtFecha(m.fecha) + '</b> · ' + m.tipo + (m.metodo ? ' · ' + m.metodo : ''), $p(m.monto), '');
+      }).join('')) +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
+      '<button class="btn" onclick="openM_pedido_pago(' + p.id + ')">Ver pedido</button>' +
+      '<button class="btn btn-p" onclick="closeM()">Cerrar</button>' +
+    '</div>';
+  document.getElementById('modal').classList.add('open');
+}
 // Historial de cobros de un pedido, cada uno con su fecha: seña inicial, refuerzos y pagos
 function pedMovs(p){
   var refs = p.refuerzos || [], pagos = p.pagos || [];
@@ -3620,6 +3687,7 @@ function openModalSena(){
       '<div class="fr"><label>Teléfono / WhatsApp</label><input id="sena-tel" type="text" placeholder="Ej: 11-1234-5678"></div>' +
       '<div class="fr" style="grid-column:1/-1"><label>Detalle del encargo</label><input id="sena-det" type="text" value="' + detalle + '" placeholder="Descripción del pedido"></div>' +
       '<div class="fr"><label>Total del pedido ($)</label><input id="sena-tot" type="number" value="' + total + '" min="0" oninput="calcSenaResto()"></div>' +
+      '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para la ganancia)</span></label><input id="sena-costo" type="number" min="0" value="' + cart.reduce(function(s,i){ return s+(i.cu||0)*i.qty; }, 0) + '"></div>' +
       '<div class="fr"><label>Seña recibida ($) *</label><input id="sena-val" type="number" value="0" min="0" oninput="calcSenaResto()"></div>' +
       '<div class="fr"><label>Método cobro seña</label>' +
         '<select id="sena-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>' +
@@ -3661,7 +3729,7 @@ function saveSena(){
   var fechaEl = document.getElementById('pos-fecha');
   var fechaVenta = (fechaEl && fechaEl.value) ? fechaEl.value : hoy();
   var telSena = document.getElementById('sena-tel') ? document.getElementById('sena-tel').value||'' : '';
-  // Solo crear pedido — la venta se registra cuando se salda la deuda
+  // Se crea el pedido y la seña ya queda registrada en Ventas con su parte de ganancia
   var pedId = newId();
   pedidos.push({
     id: pedId,
@@ -3670,8 +3738,10 @@ function saveSena(){
     entrega: ent, notas: notas,
     estado: (tot-sena)<=0 ? 'Pagado' : 'Pendiente',
     items: cart.map(function(i){ return {pid:i.pid, nombre:i.nombre, qty:i.qty, pu:i.pu, cu:i.cu, cat:i.cat}; }),
+    costo: parseFloat((document.getElementById('sena-costo')||{}).value)||0,
     refuerzos: []
   });
+  pedCobro(pedidos[pedidos.length-1], 'Seña', sena, fechaVenta, met);
   var tkSena = ticketDePedido(pedidos[pedidos.length-1], 'sena');
   save(); render(); closeM();
   cart = [];
@@ -3725,6 +3795,7 @@ function openM_pedido_pago(id){
         '</select>' +
       '</div>' +
       '<div class="fr"><label>Fecha entrega est.</label><input id="ped-ent" type="date" value="'+(p.entrega||'')+'"></div>' +
+      '<div class="fr"><label>Costo total del pedido ($) <span style="font-size:11px;color:var(--ink4)">(reparte la ganancia entre los pagos)</span></label><input id="ped-costo" type="number" min="0" value="'+pedCosto(p)+'"></div>' +
       '<div class="fr" style="grid-column:1/-1"><label>Notas</label><input id="ped-notas" type="text" value="'+(p.notas||'')+'" placeholder="Observaciones..."></div>' +
     '</div>' +
     (saldo>0 ? '<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radl);padding:12px 14px;margin-top:12px">' +
@@ -3732,13 +3803,12 @@ function openM_pedido_pago(id){
       '<div class="fg">' +
         '<div class="fr"><label>Monto a cobrar ($)</label><input id="pago-monto" type="number" value="'+saldo+'" min="0"></div>' +
      '<div class="fr"><label>Fecha del pago</label><input id="pago-fecha" type="date" value="'+hoy()+'"></div>' +
-        ((!p.items || !p.items.length || p.items.every(function(i){ return !i.cu; })) ?
-          '<div class="fr"><label>Costo total ($) <span style="font-size:11px;color:var(--ink4)">(para calcular ganancia; se guarda aunque el pago sea parcial)</span></label><input id="pago-costo" type="number" value="'+(p.costoGuardado||0)+'" min="0" placeholder="Opcional"></div>' : '') +
         '<div class="fr"><label>Método</label><select id="pago-met"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div>' +
       '</div>' +
     '</div>' : '') +
     '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">' +
       '<button type="button" class="btn" onclick="ticketPedido('+id+')">🧾 Ticket</button>' +
+      '<button type="button" class="btn" onclick="openHistPed('+id+')">📜 Historial</button>' +
       '<button class="btn" onclick="closeM()">Cancelar</button>' +
       (saldo>0 ? '<button type="button" class="btn btn-g" onclick="savePago('+id+')">Guardar + registrar pago</button>' : '') +
       '<button type="button" class="btn btn-p" onclick="savePedEdit('+id+')">Guardar cambios</button>' +
@@ -3762,20 +3832,15 @@ function aplicarRefuerzoPendiente(p){
   p.refuerzos.push({id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), monto: monto, metodo: met});
   if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
   var saldoRestante = p.total - p.sena;
-  ventas.push({
-    id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), pid: 0,
-    nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
-    // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
-    // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
-    cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada', metodo: met,
-    notas: 'Refuerzo de seña (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
-  });
+  pedLeerCosto(p);
+  pedCobro(p, 'Refuerzo de seña', monto, ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), met);
   return monto;
 }
 
 function savePedEdit(pedId){
   var p = pedidos.find(function(x){ return x.id===pedId; }); if(!p) return;
   var montoRef = aplicarRefuerzoPendiente(p);
+  pedLeerCosto(p);
   p.estado  = document.getElementById('ped-est').value;
   p.entrega = document.getElementById('ped-ent').value||'';
   p.notas   = document.getElementById('ped-notas').value||'';
@@ -3794,6 +3859,7 @@ function savePago(pedId){
     var saldoReal = p.total - p.sena;
     if(monto > saldoReal) monto = saldoReal;
     if(monto <= 0){
+      pedLeerCosto(p);
       closeM(); save(); render();
       snack('✓ Refuerzo de ' + $p(montoRefAplicado) + ' agregado · Pedido saldado');
       return;
@@ -3808,52 +3874,14 @@ function savePago(pedId){
   p.entrega = document.getElementById('ped-ent').value||p.entrega;
   p.notas   = document.getElementById('ped-notas').value||p.notas;
   var saldoRestante = p.total - p.sena;
-  // Registrar el pago como venta
+  // Cada pago entra a Ventas por lo cobrado, con su parte proporcional de ganancia
+  pedLeerCosto(p);
+  pedCobro(p, saldoRestante <= 0 ? 'Pago final' : 'Pago parcial', monto, ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()), met);
   if(saldoRestante <= 0){
-    // Pedido completamente saldado — registrar venta completa con todos los ítems
-    var costoManual = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0; if(!costoManual && p.costoGuardado) costoManual = p.costoGuardado;
-    var items = p.items && p.items.length ? p.items : [{nombre: p.detalle, qty:1, pu:p.total, cu:costoManual, cat:'Pedidos'}];
-    // If items exist but have no cost, distribute costoManual proportionally
-    if(costoManual > 0 && items.every(function(i){ return !i.cu; })){
-      var totalPu = items.reduce(function(s,i){ return s + (i.pu * (i.qty||1)); }, 0);
-      items = items.map(function(i){
-        var proporcion = totalPu > 0 ? (i.pu * (i.qty||1)) / totalPu : 1/items.length;
-        return Object.assign({}, i, {cu: Math.round(costoManual * proporcion / (i.qty||1))});
-      });
-    }
-    else if(costoManual === 0 && items.every(function(i){ return !i.cu; })){
-  // Sin costo cargado en items ni en el campo "Costo total": por defecto la ganancia
-  // queda en $0 (cu = pu) en vez de tomar el total como ganancia sin costo.
-  items = items.map(function(i){ return Object.assign({}, i, {cu: i.pu}); });
-  }
-    items.forEach(function(item){
-      ventas.push({
-        id: newId(),
-        fecha: ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()),
-        pid: item.pid || 0,
-        nombre: item.nombre,
-        cat: item.cat || 'Pedidos',
-        cant: item.qty || 1,
-        cu: item.cu || 0,
-        pu: item.pu,
-        estado: 'Ganada',
-        metodo: met,
-        notas: 'Pago final en ' + met + ' · Encargo de ' + p.cliente
-      });
-    });
     p.estado = 'Entregado';
-    snack('✓ Pedido de ' + p.cliente + ' saldado y registrado como venta ✓');
+    snack('✓ Pedido de ' + p.cliente + ' saldado' + (pedCosto(p) > 0 ? '' : ' · Falta cargar el costo para ver la ganancia'));
   } else {
-    // Pago parcial — solo registrar el pago
-    ventas.push({
-      id: newId(), fecha: ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()), pid: 0,
-      nombre: 'PAGO PARCIAL — ' + p.cliente,
-      // cu = pu a propósito: es un anticipo, no una venta cerrada — la ganancia
-      // real se contabiliza recién cuando el pedido queda saldado.
-      cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada',
-      notas: 'Pago parcial (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
-    });
-    var costoManualParcial = parseFloat(document.getElementById('pago-costo') ? document.getElementById('pago-costo').value : 0)||0; if(costoManualParcial > 0) p.costoGuardado = costoManualParcial; snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante) + (costoManualParcial>0 ? ' · Costo guardado para el cierre ✓' : ''));
+    snack('✓ Pago de ' + $p(monto) + ' registrado · Saldo restante: ' + $p(saldoRestante));
   }
   closeM(); save(); render();
 }
@@ -3870,14 +3898,8 @@ function addRefuerzoSena(pedId){
   p.refuerzos.push({id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), monto: monto, metodo: met});
   if(p.estado === 'Pendiente') p.estado = 'Parcialmente pagado';
   var saldoRestante = p.total - p.sena;
-  ventas.push({
-    id: newId(), fecha: ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), pid: 0,
-    nombre: 'REFUERZO DE SEÑA — ' + p.cliente,
-    // cu = pu a propósito: un refuerzo es un anticipo, no una venta cerrada.
-    // El costo real (y la ganancia real) se contabiliza recién al saldar el pedido.
-    cat: 'Pedidos', cant: 1, cu: monto, pu: monto, estado: 'Ganada', metodo: met,
-    notas: 'Refuerzo de seña (anticipo, sin ganancia todavía) en ' + met + ' · Saldo restante: ' + $p(saldoRestante)
-  });
+  pedLeerCosto(p);
+  pedCobro(p, 'Refuerzo de seña', monto, ((document.getElementById('refuerzo-fecha') && document.getElementById('refuerzo-fecha').value) || hoy()), met);
   save(); render();
   snack('✓ Refuerzo de ' + $p(monto) + ' agregado · Saldo restante: ' + $p(saldoRestante));
   openM_pedido_pago(pedId);
