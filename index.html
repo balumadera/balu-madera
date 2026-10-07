@@ -3146,7 +3146,9 @@ function rPed(){
       '<td style="font-weight:600">' + p.cliente + (p.tel ? '<br><span style="font-size:11px;color:var(--ink4);font-weight:400">' + p.tel + '</span>' : '') + '</td>' +
       '<td style="max-width:220px;font-size:13px">' + p.detalle + '</td>' +
       '<td style="font-weight:600">' + $p(p.total) + '</td>' +
-      '<td style="color:var(--green-t);font-weight:600">' + $p(p.sena) + '</td>' +
+      '<td style="color:var(--green-t);font-weight:600">' + $p(p.sena) +
+        pedMovs(p).map(function(mv){ return '<div style="font-size:11px;font-weight:400;color:var(--ink3);white-space:nowrap">' + mv.tipo + ' ' + fmtFecha(mv.fecha) + ' · ' + $p(mv.monto) + '</div>'; }).join('') +
+      '</td>' +
       '<td>' + saldoHtml + '</td>' +
       '<td>' + pedEstBadge(p.estado) + '</td>' +
       '<td style="font-size:12px;color:var(--ink3)">' + (p.entrega||'—') + '</td>' +
@@ -3487,6 +3489,9 @@ function buildTicketHTML(t){
     if(t.metodo) h += tkRow('Forma de pago', t.metodo);
   } else {
     var abonado = t.abonado || 0, saldo = Math.max(0, (t.total||0) - abonado);
+    if(t.tipo !== 'sena' && t.movs && t.movs.length){
+      t.movs.forEach(function(mv){ h += tkRow(mv.tipo + ' ' + fmtFecha(mv.fecha), $p(mv.monto), 'tk-s'); });
+    }
     h += tkRow(t.tipo === 'sena' ? 'Seña' + (t.metodo ? ' (' + t.metodo + ')' : '') : 'Abonado', $p(abonado));
     h += saldo > 0 ? tkRow('SALDO PENDIENTE', $p(saldo), 'tk-b') : '<div class="tk-c tk-b">PEDIDO SALDADO</div>';
     if(t.entrega) h += '<div>Entrega estimada: <span class="tk-b">' + fmtFecha(t.entrega) + '</span></div>';
@@ -3521,11 +3526,23 @@ function printTicket(t){
   setTimeout(function(){ window.print(); }, 400);
 }
 
+// Historial de cobros de un pedido, cada uno con su fecha: seña inicial, refuerzos y pagos
+function pedMovs(p){
+  var refs = p.refuerzos || [], pagos = p.pagos || [];
+  var suma = function(a){ return a.reduce(function(s,x){ return s + (x.monto||0); }, 0); };
+  var ini = Math.max(0, (p.sena||0) - suma(refs) - suma(pagos));
+  var m = [];
+  if(ini > 0) m.push({tipo:'Seña', fecha:p.fecha, monto:ini, metodo:p.metSena||''});
+  refs.forEach(function(r){ m.push({tipo:'Refuerzo', fecha:r.fecha, monto:r.monto, metodo:r.metodo||''}); });
+  pagos.forEach(function(g){ m.push({tipo:(g.final ? 'Pago final' : 'Pago'), fecha:g.fecha, monto:g.monto, metodo:g.metodo||''}); });
+  m.sort(function(a,b){ return String(a.fecha||'').localeCompare(String(b.fecha||'')); });
+  return m;
+}
 function ticketDePedido(p, tipo){
   return {
     tipo: tipo || 'pedido', fecha: (tipo === 'sena' ? p.fecha : hoy()), cliente: p.cliente, tel: p.tel,
     items: (p.items||[]).map(function(i){ return {nombre:i.nombre, qty:i.qty, pu:i.pu}; }),
-    detalle: p.detalle, total: p.total, abonado: p.sena, metodo: p.metSena,
+    detalle: p.detalle, total: p.total, abonado: p.sena, metodo: p.metSena, movs: pedMovs(p),
     entrega: p.entrega, notas: p.notas
   };
 }
@@ -3679,12 +3696,12 @@ function openM_pedido_pago(id){
       'Saldo: <b style="color:' + (saldo>0?'var(--red-t)':'var(--green-t)') + '">' + (saldo>0 ? $p(saldo) : 'Saldado ✓') + '</b>' +
       (p.entrega ? '<br>Entrega est.: <b>' + p.entrega + '</b>' : '') +
     '</div>' +
-    ((p.refuerzos && p.refuerzos.length) ?
+    (pedMovs(p).length ?
       '<div style="background:var(--paper2);border-radius:var(--rad);padding:10px 13px;margin-bottom:14px;font-size:12px">' +
-        '<div style="font-weight:600;margin-bottom:6px;color:var(--ink2)">Refuerzos de seña registrados</div>' +
-        p.refuerzos.map(function(r){
+        '<div style="font-weight:600;margin-bottom:6px;color:var(--ink2)">Historial de cobros (pedido del ' + fmtFecha(p.fecha) + ')</div>' +
+        pedMovs(p).map(function(r){
           return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--paper3)">' +
-            '<span>' + fmtFecha(r.fecha) + ' · ' + r.metodo + '</span>' +
+            '<span><b>' + fmtFecha(r.fecha) + '</b> · ' + r.tipo + (r.metodo ? ' · ' + r.metodo : '') + '</span>' +
             '<span style="font-weight:600;color:var(--green-t)">' + $p(r.monto) + '</span>' +
           '</div>';
         }).join('') +
@@ -3785,6 +3802,8 @@ function savePago(pedId){
   var met   = document.getElementById('pago-met').value;
   var est   = document.getElementById('ped-est').value;
   p.sena   += monto;
+  p.pagos = p.pagos || [];
+  p.pagos.push({id: newId(), fecha: ((document.getElementById('pago-fecha') && document.getElementById('pago-fecha').value) || hoy()), monto: monto, metodo: met, final: (p.total - p.sena) <= 0});
   p.estado  = est;
   p.entrega = document.getElementById('ped-ent').value||p.entrega;
   p.notas   = document.getElementById('ped-notas').value||p.notas;
