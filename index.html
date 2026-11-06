@@ -96,6 +96,7 @@ tr:hover td{background:var(--paper2)}
 .b-comp{background:var(--green-bg);color:var(--green-t)}
 .b-bp{background:var(--blue-bg);color:var(--blue-t)}
 .b-cur{background:#F3E8FF;color:#6B21A8}
+.b-wa{background:#DCF8C6;color:#075E54}
 .mp{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
 .mp-ok{background:var(--green-bg);color:var(--green-t)}
 .mp-w{background:var(--amber-bg);color:var(--amber-t)}
@@ -483,6 +484,7 @@ textarea{resize:vertical;min-height:68px}
                 <option value="Comprador">🛒 Compró</option>
                 <option value="Busca producto">🔍 Busca producto específico</option>
                 <option value="Curioso">👀 Solo miraba</option>
+                <option value="Consulta de Whatsapp">💬 Consulta de Whatsapp</option>
               </select>
             </div>
             <div class="fr" style="grid-column:1/-1"><label>Detalle (opcional)</label><input type="text" id="vdet" placeholder="Ej: buscaba mesa de luz, compró repisa..."></div>
@@ -499,7 +501,7 @@ textarea{resize:vertical;min-height:68px}
           <div><div class="cht">Historial de visitas</div></div>
           <div style="display:flex;gap:7px">
             <select id="fvismes" onchange="rVis()" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord2);border-radius:var(--rad);background:var(--surf);font-family:'DM Sans',sans-serif"><option value="">Todos los meses</option></select>
-            <select id="fvistipo" onchange="rVis()" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord2);border-radius:var(--rad);background:var(--surf);font-family:'DM Sans',sans-serif"><option value="">Todos los tipos</option><option>Comprador</option><option>Busca producto</option><option>Curioso</option></select>
+            <select id="fvistipo" onchange="rVis()" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord2);border-radius:var(--rad);background:var(--surf);font-family:'DM Sans',sans-serif"><option value="">Todos los tipos</option><option>Comprador</option><option>Busca producto</option><option>Curioso</option><option>Consulta de Whatsapp</option></select>
           </div>
         </div>
         <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th></th></tr></thead><tbody id="vis-tbody"></tbody></table>
@@ -2124,7 +2126,7 @@ function cotB(e){
   return '<span class="badge ' + (m[e]||'b-p') + '">' + e + '</span>';
 }
 function visB(t){
-  var m = {Comprador:'b-comp','Busca producto':'b-bp',Curioso:'b-cur'};
+  var m = {Comprador:'b-comp','Busca producto':'b-bp',Curioso:'b-cur','Consulta de Whatsapp':'b-wa'};
   return '<span class="badge ' + (m[t]||'b-cur') + '">' + t + '</span>';
 }
 function mpill(m){
@@ -2439,7 +2441,8 @@ function rCot(){
 
 // ── VISITAS ───────────────────────────────────────────────────────────────────
 function rVis(){
-  var total = visitas.length;
+  var wa    = visitas.filter(function(v){ return v.tipo==='Consulta de Whatsapp'; }).length;
+  var total = visitas.length - wa;
   var comp  = visitas.filter(function(v){ return v.tipo==='Comprador'; }).length;
   var bp    = visitas.filter(function(v){ return v.tipo==='Busca producto'; }).length;
   var cur   = visitas.filter(function(v){ return v.tipo==='Curioso'; }).length;
@@ -2449,10 +2452,12 @@ function rVis(){
     kpiHtml('k-wood','iw','👣', total, 'Total visitas', 'registradas') +
     kpiHtml('k-green','igr','🛒', comp, 'Compraron', 'conversión ' + tasa + '%') +
     kpiHtml('k-amber','ia','🔍', bp, 'Buscan producto', 'intención de compra') +
-    kpiHtml('k-gold','ig','👀', cur, 'Solo miraban', total>0?Math.round(cur/total*100)+'% del tráfico':'0%');
+    kpiHtml('k-gold','ig','👀', cur, 'Solo miraban', total>0?Math.round(cur/total*100)+'% del tráfico':'0%') +
+    kpiHtml('k-green','igr','💬', wa, 'Consultas WhatsApp', 'no cuentan como visita al local');
 
   var byDay = {};
   visitas.forEach(function(v){
+    if(v.tipo==='Consulta de Whatsapp') return;
     if(!byDay[v.fecha]) byDay[v.fecha] = {total:0, comp:0};
     byDay[v.fecha].total++;
     if(v.tipo==='Comprador') byDay[v.fecha].comp++;
@@ -3041,6 +3046,7 @@ function openEditVis(id){
           '<option value="Comprador"'   + (v.tipo==='Comprador'      ?' selected':'') + '>🛒 Compró</option>' +
           '<option value="Busca producto"'+(v.tipo==='Busca producto'?' selected':'') + '>🔍 Busca producto específico</option>' +
           '<option value="Curioso"'     + (v.tipo==='Curioso'        ?' selected':'') + '>👀 Solo miraba</option>' +
+          '<option value="Consulta de Whatsapp"' + (v.tipo==='Consulta de Whatsapp'?' selected':'') + '>💬 Consulta de Whatsapp</option>' +
         '</select>' +
       '</div>' +
       '<div class="fr" style="grid-column:1/-1"><label>Detalle</label><input id="ev-det" type="text" value="' + (v.det||'') + '" placeholder="Ej: buscaba mesa de luz, compró repisa..."></div>' +
